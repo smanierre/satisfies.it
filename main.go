@@ -1,16 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/server"
 )
 
 func main() {
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello World")
-	})
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	s := server.NewServer(model.NewTypeStore())
+	s.Handle("/", http.FileServer(http.Dir("public")))
+	log.Fatal(http.ListenAndServe(":8080", s))
 }
