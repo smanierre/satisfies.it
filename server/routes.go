@@ -24,8 +24,9 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(typeStore.GetAllTypes())
 		return
 	}
+	// For now only getting a type will be allowed until I decide how to handle people uploading their own types
 
-	if r.Method == http.MethodPost {
+	/* if r.Method == http.MethodPost {
 		err := r.ParseMultipartForm(1024 << 12)
 		if err != nil {
 			log.Println("Error parsing multipart form: " + err.Error())
@@ -50,7 +51,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(typeStore.StoreTypes(records))
 		return
-	}
+	}*/
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
@@ -71,7 +72,8 @@ func handleSpecificType(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(t)
 		return
 	}
-	if r.Method == http.MethodDelete {
+	// For now only getting a type will be allowed until I decide how to handle people uploading their own types
+	/*if r.Method == http.MethodDelete {
 		typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/types/")+7:]
 		id, err := strconv.Atoi(typeQuery)
 		if err != nil {
@@ -84,6 +86,6 @@ func handleSpecificType(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusNotFound)
 		return
-	}
+	}*/
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
