@@ -10,10 +10,8 @@ import (
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
-	GetAllTypes() []TypeRecord
-	GetType(id int) TypeRecord
-	StoreTypes([]TypeRecord) []TypeRecord
-	RemoveType(id int) bool
+	GetInterfaces() []TypeRecord
+	GetInterface(id int) TypeRecord
 }
 
 // TypeRecord is the same as typer.Type, just with an ID added to it so multiple types with the same name can be distinguished from one another.
@@ -45,40 +43,23 @@ func NewTypeStore() TypeStore {
 	return t
 }
 
-// GetAllTypes gets all types
-func (i *InMemoryTypestore) GetAllTypes() []TypeRecord {
-	return i.Types
-}
-
-//GetType gets a specific type
-func (i *InMemoryTypestore) GetType(id int) TypeRecord {
+// GetInterface returns the interface(in the form of a TypeRecord) with a given id, if one doesn't exist, it returns an empty TypeRecord
+func (i *InMemoryTypestore) GetInterface(id int) TypeRecord {
 	for _, v := range i.Types {
-		if v.ID == id {
+		if v.ID == id && v.BaseType == "interface" {
 			return v
 		}
 	}
 	return TypeRecord{}
 }
 
-//StoreTypes stores specific types
-func (i *InMemoryTypestore) StoreTypes(types []TypeRecord) []TypeRecord {
-	i.Types = append(i.Types, types...)
-	i.dbFile.Truncate(0)
-	i.dbFile.Seek(0, 0)
-	json.NewEncoder(i.dbFile).Encode(i)
-	return types
-}
-
-// RemoveType removes a specific type
-func (i *InMemoryTypestore) RemoveType(id int) bool {
-	for index, v := range i.Types {
-		if v.ID == id {
-			i.Types = append(i.Types[:index], i.Types[index+1:]...)
-			i.dbFile.Truncate(0)
-			i.dbFile.Seek(0, 0)
-			json.NewEncoder(i.dbFile).Encode(i)
-			return true
+// GetInterfaces returns all the interfaces stored in the "db"
+func (i *InMemoryTypestore) GetInterfaces() []TypeRecord {
+	var toReturn []TypeRecord
+	for _, v := range i.Types {
+		if v.BaseType == "interface" {
+			toReturn = append(toReturn, v)
 		}
 	}
-	return false
+	return toReturn
 }
