@@ -17,7 +17,7 @@ import (
 )
 
 type TestTypeStore struct {
-	types []typer.Type
+	types []model.TypeRecord
 }
 
 func NewTestTypeStore() model.TypeStore {
@@ -25,28 +25,37 @@ func NewTestTypeStore() model.TypeStore {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	var types []typer.Type
+	var types []model.TypeRecord
 	json.NewDecoder(f).Decode(&types)
 	return &TestTypeStore{types}
 }
 
-func (t *TestTypeStore) GetAllTypes() []typer.Type {
+func (t *TestTypeStore) GetAllTypes() []model.TypeRecord {
 	return t.types
 }
 
-func (t *TestTypeStore) GetType(s string) []typer.Type {
-	var toReturn []typer.Type
+func (t *TestTypeStore) GetType(id int) model.TypeRecord {
 	for _, v := range t.types {
-		if v.Name == s {
-			toReturn = append(toReturn, v)
+		if v.ID == id {
+			return v
 		}
 	}
-	return toReturn
+	return model.TypeRecord{}
 }
 
-func (t *TestTypeStore) StoreTypes(types []typer.Type) []typer.Type {
+func (t *TestTypeStore) StoreTypes(types []model.TypeRecord) []model.TypeRecord {
 	t.types = append(t.types, types...)
 	return types
+}
+
+func (t *TestTypeStore) RemoveType(id int) bool {
+	for i, v := range t.types {
+		if v.ID == id {
+			t.types = append(t.types[:i], t.types[i+1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 var s Server = NewServer(NewTestTypeStore())
@@ -63,15 +72,15 @@ func TestHandlers(t *testing.T) {
 			Function: handleRootGet,
 		},
 		{
-			Name:     "test get type by name",
-			Path:     "/api/types/sparseEntry",
+			Name:     "test get type by id",
+			Path:     "/api/types/2",
 			Function: handleGetTypeTest,
 		},
-		{
-			Name:     "test post types",
-			Path:     "/api/types",
-			Function: handleRootPost,
-		},
+		// { Posting isn't enabled yet so not going to test for now
+		// 	Name:     "test post types",
+		// 	Path:     "/api/types",
+		// 	Function: handleRootPost,
+		// },
 	}
 
 	for _, tc := range tt {
@@ -83,44 +92,49 @@ func TestHandlers(t *testing.T) {
 }
 
 func handleRootGet(t *testing.T, path string) {
-	expected := []typer.Type{
+	expected := []model.TypeRecord{
 		{
-			Package:  "aims",
-			Name:     "Header",
-			BaseType: "struct",
-			Fields:   map[string]string{},
-			Methods: []typer.Method{
-				{
-					Package:    "aims",
-					Receiver:   "*Header",
-					Name:       "FileInfo",
-					Parameters: []string{},
-					ReturnValues: []string{
-						"os.FileInfo",
+			Type: typer.Type{Package: "aims",
+				Name:     "Header",
+				BaseType: "struct",
+				Fields:   map[string]string{},
+				Methods: []typer.Method{
+					{
+						Package:    "aims",
+						Receiver:   "*Header",
+						Name:       "FileInfo",
+						Parameters: []string{},
+						ReturnValues: []string{
+							"os.FileInfo",
+						},
 					},
 				},
+				Signatures: []string{},
 			},
-			Signatures: []string{},
+			ID: 1,
 		}, {
-			Package:  "aims",
-			Name:     "sparseEntry",
-			BaseType: "struct",
-			Fields: map[string]string{
-				"Offset": "embedded",
-			},
-			Methods: []typer.Method{
-				{
-					Package:    "aims",
-					Receiver:   "sparseEntry",
-					Name:       "endOffset",
-					Parameters: []string{},
-					ReturnValues: []string{
-						"int64",
+			Type: typer.Type{
+				Package:  "aims",
+				Name:     "sparseEntry",
+				BaseType: "struct",
+				Fields: map[string]string{
+					"Offset": "embedded",
+				},
+				Methods: []typer.Method{
+					{
+						Package:    "aims",
+						Receiver:   "sparseEntry",
+						Name:       "endOffset",
+						Parameters: []string{},
+						ReturnValues: []string{
+							"int64",
+						},
 					},
 				},
-			},
 
-			Signatures: []string{},
+				Signatures: []string{},
+			},
+			ID: 2,
 		},
 	}
 
@@ -135,8 +149,9 @@ func handleRootGet(t *testing.T, path string) {
 }
 
 func handleGetTypeTest(t *testing.T, path string) {
-	expected := []typer.Type{
-		{
+	expected := model.TypeRecord{
+
+		Type: typer.Type{
 			Package:  "aims",
 			Name:     "sparseEntry",
 			BaseType: "struct",
@@ -157,82 +172,54 @@ func handleGetTypeTest(t *testing.T, path string) {
 
 			Signatures: []string{},
 		},
+		ID: 2,
 	}
+
 	request, err := http.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	response := httptest.NewRecorder()
-
 	s.ServeHTTP(response, request)
-	processResponse(t, response.Body, expected)
+	decoder := json.NewDecoder(response.Body)
+	var got model.TypeRecord
+	decoder.Decode(&got)
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("Got: %+v\nExpected: %+v\n", got, expected)
+	}
 }
 
 func handleRootPost(t *testing.T, path string) {
-	expected := []typer.Type{
+	expected := []model.TypeRecord{
 		{
-			Package:  "main",
-			Name:     "FirstInterface",
-			BaseType: "interface",
-			Fields:   map[string]string{},
-			Methods:  []typer.Method{},
-			Signatures: []string{
-				"first()",
-				"second(a int)",
-				"Third(b bool) io.ReadWriter",
+			Type: typer.Type{
+				Package:  "main",
+				Name:     "FirstInterface",
+				BaseType: "interface",
+				Fields:   map[string]string{},
+				Methods:  []typer.Method{},
+				Signatures: []string{
+					"first()",
+					"second(a int)",
+					"Third(b bool) io.ReadWriter",
+				},
 			},
+			ID: 1,
 		},
 		{
-			Package:  "main",
-			Name:     "SecondInterface",
-			BaseType: "interface",
-			Fields:   map[string]string{},
-			Methods:  []typer.Method{},
-			Signatures: []string{
-				"secondFirst(f float64)",
-				"secondSecond(b bool) bool",
-				"secondThird(a, b, c string, f float32) *io.Reader",
+			Type: typer.Type{
+				Package:  "main",
+				Name:     "SecondInterface",
+				BaseType: "interface",
+				Fields:   map[string]string{},
+				Methods:  []typer.Method{},
+				Signatures: []string{
+					"secondFirst(f float64)",
+					"secondSecond(b bool) bool",
+					"secondThird(a, b, c string, f float32) *io.Reader",
+				},
 			},
-		},
-		{
-			Package:  "main",
-			Name:     "FirstStruct",
-			BaseType: "struct",
-			Fields: map[string]string{
-				"FirstField":  "string",
-				"SecondField": "float64",
-				"ThirdField":  "*int",
-			},
-			Methods:    []typer.Method{},
-			Signatures: []string{},
-		},
-		{
-			Package:  "main",
-			Name:     "SecondStruct",
-			BaseType: "struct",
-			Fields: map[string]string{
-				"*FirstStruct":      "embedded",
-				"SecondFirstField":  "string",
-				"SecondSecondField": "int",
-			},
-			Methods:    []typer.Method{},
-			Signatures: []string{},
-		},
-		{
-			Package:    "main",
-			Name:       "FirstCustomType",
-			BaseType:   "float64",
-			Fields:     map[string]string{},
-			Methods:    []typer.Method{},
-			Signatures: []string{},
-		},
-		{
-			Package:    "main",
-			Name:       "SecondCustomType",
-			BaseType:   "string",
-			Fields:     map[string]string{},
-			Methods:    []typer.Method{},
-			Signatures: []string{},
+			ID: 2,
 		},
 	}
 	testFile, err := os.Open("./../testFiles/withMultipleOfEach.go")
@@ -270,7 +257,7 @@ func handleRootPost(t *testing.T, path string) {
 func processResponse(t *testing.T, res io.Reader, expected interface{}) {
 	t.Helper()
 	decoder := json.NewDecoder(res)
-	var got []typer.Type
+	var got []model.TypeRecord
 	decoder.Decode(&got)
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("Got: %+v\nExpected: %+v\n", got, expected)
