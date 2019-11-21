@@ -9,38 +9,29 @@ import (
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){
-	"/interface":  handleInterfaceRoot,
-	"/interface/": handleSingleInterface,
-}
-
-func handleInterfaceRoot(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		getAllInterfaces(w, r)
-		return
-	}
-	if r.Method == http.MethodPost {
-		// Stubbed for now but will implement later
-		return
-	}
-	w.WriteHeader(http.StatusMethodNotAllowed)
-}
-
-func handleSingleInterface(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		getSingleInterface(w, r)
-		return
-	}
-	w.WriteHeader(http.StatusMethodNotAllowed)
+	"/interface":  getAllInterfaces,
+	"/interface/": getSingleInterface,
+	"/struct":     getAllStructs,
+	"/struct/":    getSingleStruct,
 }
 
 func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
-	log.Println("Handling get request at /api/interface from " + r.RemoteAddr)
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(typeStore.GetInterfaces())
 }
 
 func getSingleInterface(w http.ResponseWriter, r *http.Request) {
-	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+7:]
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
+	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
 	id, err := strconv.Atoi(interfaceQuery)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -53,4 +44,35 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(i)
+}
+
+func getAllStructs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(typeStore.GetStructs())
+}
+
+func getSingleStruct(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
+	structQuery := r.URL.Path[strings.Index(r.URL.Path, "/struct/")+8:]
+	id, err := strconv.Atoi(structQuery)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("content-type", "application/json")
+	str := typeStore.GetStruct(id)
+	if str.Package == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(str)
 }

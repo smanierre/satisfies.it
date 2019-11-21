@@ -12,6 +12,8 @@ import (
 type TypeStore interface {
 	GetInterfaces() []TypeRecord
 	GetInterface(id int) TypeRecord
+	GetStructs() []TypeRecord
+	GetStruct(id int) TypeRecord
 }
 
 // TypeRecord is the same as typer.Type, just with an ID added to it so multiple types with the same name can be distinguished from one another.
@@ -28,8 +30,8 @@ type InMemoryTypestore struct {
 }
 
 // NewTypeStore returns a new, initialized typestore
-func NewTypeStore() TypeStore {
-	store, err := os.OpenFile("/home/sean/Projects/typer-site/model/db.json", os.O_CREATE|os.O_RDWR, 777)
+func NewTypeStore(path string) TypeStore {
+	store, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 777)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -62,4 +64,23 @@ func (i *InMemoryTypestore) GetInterfaces() []TypeRecord {
 		}
 	}
 	return toReturn
+}
+
+func (i *InMemoryTypestore) GetStructs() []TypeRecord {
+	var toReturn []TypeRecord
+	for _, v := range i.Types {
+		if v.BaseType == "struct" {
+			toReturn = append(toReturn, v)
+		}
+	}
+	return toReturn
+}
+
+func (i *InMemoryTypestore) GetStruct(id int) TypeRecord {
+	for _, v := range i.Types {
+		if v.ID == id && v.BaseType == "struct" {
+			return v
+		}
+	}
+	return TypeRecord{}
 }

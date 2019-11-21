@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt",
-	"io",
+	"fmt"
+	"io"
 )
 
 type FirstInterface interface {
@@ -18,13 +18,13 @@ type SecondInterface interface {
 }
 
 type FirstStruct struct {
-	FirstField string
+	FirstField  string
 	SecondField float64
-	ThirdField *int
+	ThirdField  *int
 }
 
 type SecondStruct struct {
-	SecondFirstField string
+	SecondFirstField  string
 	SecondSecondField int
 	*FirstStruct
 }

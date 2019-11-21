@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	s := server.NewServer(model.NewTypeStore())
+	s := server.NewServer(model.NewTypeStore("./model/db.json"))
 	s.Handle("/", http.FileServer(http.Dir("public")))
 	log.Fatal(http.ListenAndServe(":8080", s))
 }
