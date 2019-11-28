@@ -2,19 +2,84 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 
 	"github.com/smanierre/typer"
-	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/store"
 )
 
-var s Server = NewServer(model.NewTypeStore("./../testFiles/types.json"))
+var s Server = NewServer(NewTypeStore("./../testFiles/types.json"))
+
+// InMemoryTypestore is a placeholder typestore until a database is setup
+type InMemoryTypestore struct {
+	Sequence int                `json:"Sequence"`
+	Types    []store.TypeRecord `json:"Types"`
+	dbFile   *os.File
+}
+
+// NewTypeStore returns a new, initialized typestore
+func NewTypeStore(path string) store.TypeStore {
+	store, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 777)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	t := &InMemoryTypestore{}
+	decoder := json.NewDecoder(store)
+	decoder.Decode(t)
+	t.dbFile = store
+	if t.Sequence < 1 {
+		t.Sequence = 1
+	}
+	return t
+}
+
+// GetInterface returns the interface(in the form of a TypeRecord) with a given id, if one doesn't exist, it returns an empty TypeRecord
+func (i *InMemoryTypestore) GetInterface(id int) store.TypeRecord {
+	for _, v := range i.Types {
+		if v.ID == id && v.BaseType == "interface" {
+			return v
+		}
+	}
+	return store.TypeRecord{}
+}
+
+// GetInterfaces returns all the interfaces stored in the "db"
+func (i *InMemoryTypestore) GetInterfaces() []store.TypeRecord {
+	var toReturn []store.TypeRecord
+	for _, v := range i.Types {
+		if v.BaseType == "interface" {
+			toReturn = append(toReturn, v)
+		}
+	}
+	return toReturn
+}
+
+func (i *InMemoryTypestore) GetStructs() []store.TypeRecord {
+	var toReturn []store.TypeRecord
+	for _, v := range i.Types {
+		if v.BaseType == "struct" {
+			toReturn = append(toReturn, v)
+		}
+	}
+	return toReturn
+}
+
+func (i *InMemoryTypestore) GetStruct(id int) store.TypeRecord {
+	for _, v := range i.Types {
+		if v.ID == id && v.BaseType == "struct" {
+			return v
+		}
+	}
+	return store.TypeRecord{}
+}
 
 func TestGetInterface(t *testing.T) {
-	expected := model.TypeRecord{
+	expected := store.TypeRecord{
 		Type: typer.Type{
 			Package:  "builtin",
 			BaseType: "interface",
@@ -34,7 +99,7 @@ func TestGetInterface(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	s.ServeHTTP(response, request)
-	var got model.TypeRecord
+	var got store.TypeRecord
 	err = json.NewDecoder(response.Body).Decode(&got)
 	if err != nil {
 		t.Errorf("unable to deserialize json: %s\n", err.Error())
@@ -45,7 +110,7 @@ func TestGetInterface(t *testing.T) {
 }
 
 func TestGetInterfaces(t *testing.T) {
-	expected := []model.TypeRecord{
+	expected := []store.TypeRecord{
 		{
 			Type: typer.Type{
 				Package:  "builtin",
@@ -80,7 +145,7 @@ func TestGetInterfaces(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	s.ServeHTTP(response, request)
-	var got []model.TypeRecord
+	var got []store.TypeRecord
 	err = json.NewDecoder(response.Body).Decode(&got)
 	if err != nil {
 		t.Errorf("unable to deserialize json: %s\n", err.Error())
@@ -91,7 +156,7 @@ func TestGetInterfaces(t *testing.T) {
 }
 
 func TestGetStruct(t *testing.T) {
-	expected := model.TypeRecord{
+	expected := store.TypeRecord{
 		Type: typer.Type{
 			Package:  "aims",
 			Name:     "Header",
@@ -118,7 +183,7 @@ func TestGetStruct(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	s.ServeHTTP(response, request)
-	var got model.TypeRecord
+	var got store.TypeRecord
 	err = json.NewDecoder(response.Body).Decode(&got)
 	if err != nil {
 		t.Errorf("unable to deserialize json: %s\n", err.Error())

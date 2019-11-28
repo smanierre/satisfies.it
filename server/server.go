@@ -4,17 +4,17 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/store"
 )
 
 type Server struct {
 	*http.ServeMux
-	TypeStore model.TypeStore
+	TypeStore store.TypeStore
 }
 
-var typeStore model.TypeStore
+var typeStore store.TypeStore
 
-func NewServer(store model.TypeStore) Server {
+func NewServer(store store.TypeStore) Server {
 	s := Server{
 		ServeMux:  http.DefaultServeMux,
 		TypeStore: store,
