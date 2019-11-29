@@ -1,9 +1,9 @@
-package model
+package store
 
 import (
-	"time"
 	"fmt"
 	"log"
+	"time"
 
 	db "github.com/smanierre/store/postgres"
 )
@@ -24,7 +24,7 @@ type TypeRecord struct {
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
 type TypeStorePGImpl struct {
-	types []TypeRecord
+	types       []TypeRecord
 	lastUpdated time.Time
 }
 
@@ -42,7 +42,7 @@ func NewStore() (TypeStore, error) {
 
 // GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
 func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
-	if time.
+	updateStore()
 	var interfaces []TypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "interface" {
@@ -50,6 +50,53 @@ func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
 		}
 	}
 	return interfaces
+}
+
+// GetInterface returns a TypeRecord matching the id if it exists and is an interface.
+func (t *TypeStorePGImpl) GetInterface(id int) TypeRecord {
+	updateStore()
+	for _, v := range t.types {
+		if v.BaseType == "interface" && v.ID == id {
+			return v
+		}
+	}
+	return TypeRecord{}
+}
+
+// GetStructs returns a slice of TypeRecords containing all the structs in the store.
+func (t *TypeStorePGImpl) GetStructs() []TypeRecord {
+	updateStore()
+	var structs []TypeRecord
+	for _, v := range t.types {
+		if v.BaseType == "struct" {
+			structs = append(structs, v)
+		}
+	}
+	return structs
+}
+
+// GetStruct returns a TypeRecord matching the id if it exists and is a struct.
+func (t *TypeStorePGImpl) GetStruct(id int) TypeRecord {
+	updateStore()
+	for _, v := range t.types {
+		if v.BaseType == "struct" && v.ID == id {
+			return v
+		}
+	}
+	return TypeRecord{}
+}
+
+func updateStore() {
+	if t.lastUpdated.Sub(time.Now()) > time.Second*30 {
+		log.Println("Updating TypeStore from database")
+		types, err := getAndParseTypes()
+		if err != nil {
+			log.Printf("Error: %s", err)
+		} else {
+			t.types = types
+			t.lastUpdated = time.Now()
+		}
+	}
 }
 
 func getAndParseTypes() ([]TypeRecord, error) {
