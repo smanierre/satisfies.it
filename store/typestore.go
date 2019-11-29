@@ -1,11 +1,14 @@
 package store
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
-	db "github.com/smanierre/store/postgres"
+	"github.com/smanierre/typer"
+	db "github.com/smanierre/typer-site/store/postgres"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application
@@ -37,12 +40,12 @@ func NewStore() (TypeStore, error) {
 	}
 	t.types = types
 	t.lastUpdated = time.Now()
-	return t, nil
+	return &t, nil
 }
 
 // GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
 func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
-	updateStore()
+	t.updateStore()
 	var interfaces []TypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "interface" {
@@ -54,7 +57,7 @@ func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
 
 // GetInterface returns a TypeRecord matching the id if it exists and is an interface.
 func (t *TypeStorePGImpl) GetInterface(id int) TypeRecord {
-	updateStore()
+	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType == "interface" && v.ID == id {
 			return v
@@ -65,7 +68,7 @@ func (t *TypeStorePGImpl) GetInterface(id int) TypeRecord {
 
 // GetStructs returns a slice of TypeRecords containing all the structs in the store.
 func (t *TypeStorePGImpl) GetStructs() []TypeRecord {
-	updateStore()
+	t.updateStore()
 	var structs []TypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "struct" {
@@ -77,7 +80,7 @@ func (t *TypeStorePGImpl) GetStructs() []TypeRecord {
 
 // GetStruct returns a TypeRecord matching the id if it exists and is a struct.
 func (t *TypeStorePGImpl) GetStruct(id int) TypeRecord {
-	updateStore()
+	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType == "struct" && v.ID == id {
 			return v
@@ -86,8 +89,8 @@ func (t *TypeStorePGImpl) GetStruct(id int) TypeRecord {
 	return TypeRecord{}
 }
 
-func updateStore() {
-	if t.lastUpdated.Sub(time.Now()) > time.Second*30 {
+func (t *TypeStorePGImpl) updateStore() {
+	if t.lastUpdated.Sub(time.Now()) < time.Second*-30 {
 		log.Println("Updating TypeStore from database")
 		types, err := getAndParseTypes()
 		if err != nil {
@@ -107,10 +110,14 @@ func getAndParseTypes() ([]TypeRecord, error) {
 	defer rows.Close()
 	var types []TypeRecord
 	var t TypeRecord
+	var s string
 	for rows.Next() {
-		if err := rows.Scan(&t); err != nil {
+		if err := rows.Scan(&t.ID, &t.Package, &t.Name, &t.BaseType, &s); err != nil {
 			return nil, fmt.Errorf("unable to parse row into TypeRecord: %s", err)
 		}
+		b := bytes.NewBufferString(s)
+		decoder := json.NewDecoder(b)
+		decoder.Decode(&t.Fields)
 		types = append(types, t)
 	}
 	return types, nil

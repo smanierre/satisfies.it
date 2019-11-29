@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	typeInsertQuery      = `INSERT INTO types(package, name, base_type, fields) VALUES($1, $2, $3, $4) RETURNING id;`
+	typeInsertQuery      = `INSERT INTO types(package, name, basetype, fields) VALUES($1, $2, $3, $4) RETURNING id;`
 	typeSelectAllQuery   = `SELECT * FROM types;`
 	typeSelectByIDQuery  = `SELECT * FROM types WHERE id=$1;`
 	methodInsertQuery    = `INSERT INTO methods(package, method_receiver_id, method_name, parameters, return_values) VALUES($1, $2, $3, $4, $5) RETURNING id;`
@@ -26,7 +26,8 @@ var selectAllMethodStatement *sql.Stmt
 var selectMethodByIDStatement *sql.Stmt
 
 func init() {
-	db, err := sql.Open("postgres", "192.168.0.106")
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", "localhost", "5432", "postgres", "testpass", "types")
+	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)
 	}
@@ -34,15 +35,15 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	createStatement, err = db.Prepare(typeInsertQuery)
+	createTypeStatement, err = db.Prepare(typeInsertQuery)
 	if err != nil {
 		panic(err)
 	}
-	selectAllStatement, err = db.Prepare(typeSelectAllQuery)
+	selectAllTypeStatement, err = db.Prepare(typeSelectAllQuery)
 	if err != nil {
 		panic(err)
 	}
-	selectByIDStatement, err = db.Prepare(typeSelectByIDQuery)
+	selectTypeByIDStatement, err = db.Prepare(typeSelectByIDQuery)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +86,6 @@ func GetAllTypes() (*sql.Rows, error) {
 // GetTypeByID returns a *sql.Row with the given ID.
 func GetTypeByID(id int) *sql.Row {
 	return selectTypeByIDStatement.QueryRow(id)
-
 }
 
 // CreateMethod takes the fields from a Method (sans ID) and inserts it into the database, returning an error if not successful.
@@ -101,8 +101,16 @@ func CreateMethod(packageName string, receiverID int, name string, parameters, r
 	return int(lastID), nil
 }
 
-
+// GetAllMethods returns all the *sql.Rows of the method table in the database.
 func GetAllMethods() (*sql.Rows, error) {
 	rows, err := selectAllMethodStatement.Query()
-	if err != nil 
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute query: %s", err)
+	}
+	return rows, nil
+}
+
+// GetMethodByID returns a *sql.Row with the given ID.
+func GetMethodByID(id int) *sql.Row {
+	return selectMethodByIDStatement.QueryRow(id)
 }
