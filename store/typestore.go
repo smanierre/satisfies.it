@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/smanierre/typer"
@@ -27,8 +28,9 @@ type TypeRecord struct {
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
 type TypeStorePGImpl struct {
-	types       []TypeRecord
-	lastUpdated time.Time
+	types                 []TypeRecord
+	interfaceImplementers map[int][]int
+	lastUpdated           time.Time
 }
 
 // NewStore returns an initialized TypeStore with types already retrieved from the database.
@@ -39,6 +41,7 @@ func NewStore() (TypeStore, error) {
 		log.Printf("Error: %s", err)
 	}
 	t.types = types
+	t.resolveImplementations()
 	t.lastUpdated = time.Now()
 	return &t, nil
 }
@@ -121,4 +124,46 @@ func getAndParseTypes() ([]TypeRecord, error) {
 		types = append(types, t)
 	}
 	return types, nil
+}
+
+func getAndParseMethods(types *[]TypeRecord) error {
+	rows, err := db.GetAllMethods()
+	if err != nil {
+		return fmt.Errorf("unable to retrieve methods from database: %s", err)
+	}
+	defer rows.Close()
+	var methods []typer.Method
+	var m typer.Method
+	var typeIDHolder int
+	for rows.Next() {
+		if err := rows.Scan(&m.ID, &m.Package, &typeIDHolder, &m.Name, &m.Parameters, &m.ReturnValues); err != nil {
+			return fmt.Errorf("unable to parse row into Method: %s", err)
+		}
+		for _, v := range *types {
+			if v.ID == typeIDHolder {
+				m.Receiver = fmt.Sprintf("%s.%s", v.Package, v.Name)
+			}
+		}
+	}
+	return nil
+}
+
+func (t *TypeStorePGImpl) resolveImplementations() {
+	interfaces := t.GetInterfaces()
+	structs := t.GetStructs()
+
+	interfaceImplementers := map[int][]int{}
+
+	for _, i := range interfaces {
+		for _, s := range structs {
+			if reflect.DeepEqual(i.Methods, s.Methods) {
+				_, ok := interfaceImplementers[i.ID]
+				if !ok {
+					interfaceImplementers[i.ID] = []int{s.ID}
+				}
+				interfaceImplementers[i.ID] = append(interfaceImplementers[i.ID], s.ID)
+			}
+		}
+	}
+	t.interfaceImplementers = interfaceImplementers
 }
