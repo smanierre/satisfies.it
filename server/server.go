@@ -7,6 +7,7 @@ import (
 	"github.com/smanierre/typer-site/store"
 )
 
+// Server uses the DefaultServeMux and provides a store for endpoints to access
 type Server struct {
 	*http.ServeMux
 	TypeStore store.TypeStore
@@ -14,6 +15,7 @@ type Server struct {
 
 var typeStore store.TypeStore
 
+// NewServer returns a server initialized with a TypeStore and using the DefaultServeMux
 func NewServer(store store.TypeStore) Server {
 	s := Server{
 		ServeMux:  http.DefaultServeMux,

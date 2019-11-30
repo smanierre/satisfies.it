@@ -13,7 +13,7 @@ import (
 	"github.com/smanierre/typer-site/store"
 )
 
-var s Server = NewServer(NewTypeStore("./../testFiles/types.json"))
+var s = NewServer(NewTypeStore("./../testFiles/types.json"))
 
 // InMemoryTypestore is a placeholder typestore until a database is setup
 type InMemoryTypestore struct {
@@ -80,15 +80,13 @@ func (i *InMemoryTypestore) GetStruct(id int) store.TypeRecord {
 
 func TestGetInterface(t *testing.T) {
 	expected := store.TypeRecord{
-		Type: typer.Type{
-			Package:  "builtin",
-			BaseType: "interface",
-			Name:     "error",
-			Fields:   map[string]string{},
-			Methods:  []typer.Method{},
-			Signatures: []string{
-				"Error() string",
-			},
+		Package:  "builtin",
+		BaseType: "interface",
+		Name:     "error",
+		Fields:   map[string]string{},
+		Methods:  []store.MethodRecord{},
+		Signatures: []string{
+			"Error() string",
 		},
 		ID: 3,
 	}
@@ -112,28 +110,25 @@ func TestGetInterface(t *testing.T) {
 func TestGetInterfaces(t *testing.T) {
 	expected := []store.TypeRecord{
 		{
-			Type: typer.Type{
-				Package:  "builtin",
-				BaseType: "interface",
-				Name:     "error",
-				Fields:   map[string]string{},
-				Methods:  []typer.Method{},
-				Signatures: []string{
-					"Error() string",
-				},
+
+			Package:  "builtin",
+			BaseType: "interface",
+			Name:     "error",
+			Fields:   map[string]string{},
+			Methods:  []store.MethodRecord{},
+			Signatures: []string{
+				"Error() string",
 			},
 			ID: 3,
 		},
 		{
-			Type: typer.Type{
-				Package:  "test",
-				BaseType: "interface",
-				Name:     "TestInterface",
-				Fields:   map[string]string{},
-				Methods:  []typer.Method{},
-				Signatures: []string{
-					"TestMethod() int",
-				},
+			Package:  "test",
+			BaseType: "interface",
+			Name:     "TestInterface",
+			Fields:   map[string]string{},
+			Methods:  []store.MethodRecord{},
+			Signatures: []string{
+				"TestMethod() int",
 			},
 			ID: 4,
 		},
@@ -157,13 +152,14 @@ func TestGetInterfaces(t *testing.T) {
 
 func TestGetStruct(t *testing.T) {
 	expected := store.TypeRecord{
-		Type: typer.Type{
-			Package:  "aims",
-			Name:     "Header",
-			BaseType: "struct",
-			Fields:   map[string]string{},
-			Methods: []typer.Method{
-				{
+		Package:  "aims",
+		Name:     "Header",
+		BaseType: "struct",
+		Fields:   map[string]string{},
+		Methods: []store.MethodRecord{
+			{
+				ID: 1,
+				Method: typer.Method{
 					Package:    "aims",
 					Receiver:   "*Header",
 					Name:       "FileInfo",
@@ -173,9 +169,9 @@ func TestGetStruct(t *testing.T) {
 					},
 				},
 			},
-			Signatures: []string{},
 		},
-		ID: 1,
+		Signatures: []string{},
+		ID:         1,
 	}
 	request, err := http.NewRequest(http.MethodGet, "/api/struct/1", nil)
 	if err != nil {

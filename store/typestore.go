@@ -22,7 +22,18 @@ type TypeStore interface {
 
 // TypeRecord is the same as typer.Type, just with an ID added to it so multiple types with the same name can be distinguished from one another.
 type TypeRecord struct {
-	typer.Type
+	Package    string            `json:"Package"`
+	Name       string            `json:"Name"`
+	BaseType   string            `json:"BaseType"`
+	Fields     map[string]string `json:"Fields"`
+	Methods    []MethodRecord    `json:"Methods"`
+	Signatures []string          `json:"Signatures"`
+	ID         int               `json:"ID"`
+}
+
+// MethodRecord is a type to encapsulate typer.Method but also to let it have an ID
+type MethodRecord struct {
+	typer.Method
 	ID int `json:"ID"`
 }
 
@@ -132,8 +143,8 @@ func getAndParseMethods(types *[]TypeRecord) error {
 		return fmt.Errorf("unable to retrieve methods from database: %s", err)
 	}
 	defer rows.Close()
-	var methods []typer.Method
-	var m typer.Method
+	// var methods []MethodRecord
+	var m MethodRecord
 	var typeIDHolder int
 	for rows.Next() {
 		if err := rows.Scan(&m.ID, &m.Package, &typeIDHolder, &m.Name, &m.Parameters, &m.ReturnValues); err != nil {
