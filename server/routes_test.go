@@ -77,7 +77,6 @@ func (i *InMemoryTypestore) GetStruct(id int) store.TypeRecord {
 	}
 	return store.TypeRecord{}
 }
-
 func TestGetInterface(t *testing.T) {
 	expected := store.TypeRecord{
 		Package:  "builtin",

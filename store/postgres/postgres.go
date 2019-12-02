@@ -25,8 +25,8 @@ var createMethodStatement *sql.Stmt
 var selectAllMethodStatement *sql.Stmt
 var selectMethodByIDStatement *sql.Stmt
 
-func init() {
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", "192.168.0.106", "5432", "pi", "testpass", "types")
+func InitDB() {
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable", "192.168.0.106", "5432", "pi", "types")
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)

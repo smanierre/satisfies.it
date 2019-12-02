@@ -18,7 +18,8 @@
                ],
                "ReturnValues":[ 
                   "os.FileInfo"
-               ]
+               ],
+               "ID":1
             }
          ],
          "Signatures":[ 

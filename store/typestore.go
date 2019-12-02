@@ -167,6 +167,7 @@ func (t *TypeStorePGImpl) resolveImplementations() {
 
 	for _, i := range interfaces {
 		for _, s := range structs {
+			for _, m := 
 			if reflect.DeepEqual(i.Methods, s.Methods) {
 				_, ok := interfaceImplementers[i.ID]
 				if !ok {
@@ -177,4 +178,20 @@ func (t *TypeStorePGImpl) resolveImplementations() {
 		}
 	}
 	t.interfaceImplementers = interfaceImplementers
+}
+
+func (m MethodRecord) Equals(record MethodRecord) bool {
+	if m.Receiver != record.Receiver {
+		return false
+	}
+	if m.Name != record.Name {
+		return false
+	}
+	if !reflect.DeepEqual(m.Parameters, record.Parameters) {
+		return false
+	}
+	if !reflect.DeepEqual(m.ReturnValues, record.ReturnValues) {
+		return false
+	}
+	return true
 }

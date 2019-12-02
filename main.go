@@ -6,10 +6,12 @@ import (
 
 	"github.com/smanierre/typer-site/server"
 	"github.com/smanierre/typer-site/store"
+	db "github.com/smanierre/typer-site/store/postgres"
 )
 
 func main() {
 	store, err := store.NewStore()
+	db.InitDB()
 	if err != nil {
 		log.Fatal(err)
 	}
