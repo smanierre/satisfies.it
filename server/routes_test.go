@@ -59,7 +59,7 @@ func (i *InMemoryTypestore) GetInterfaces() []store.TypeRecord {
 	return toReturn
 }
 
-func (i *InMemoryTypestore) GetStructs() []store.TypeRecord {
+func (i *InMemoryTypestore) GetTypes() []store.TypeRecord {
 	var toReturn []store.TypeRecord
 	for _, v := range i.Types {
 		if v.BaseType == "struct" {
@@ -69,13 +69,23 @@ func (i *InMemoryTypestore) GetStructs() []store.TypeRecord {
 	return toReturn
 }
 
-func (i *InMemoryTypestore) GetStruct(id int) store.TypeRecord {
+func (i *InMemoryTypestore) GetTypeByID(id int) store.TypeRecord {
 	for _, v := range i.Types {
 		if v.ID == id && v.BaseType == "struct" {
 			return v
 		}
 	}
 	return store.TypeRecord{}
+}
+
+func (i *InMemoryTypestore) GetTypesByName(name string) []store.TypeRecord {
+	var types []store.TypeRecord
+	for _, v := range i.Types {
+		if v.BaseType != "interace" && v.Name == name {
+			types = append(types, v)
+		}
+	}
+	return types
 }
 func TestGetInterface(t *testing.T) {
 	expected := store.TypeRecord{
@@ -84,10 +94,7 @@ func TestGetInterface(t *testing.T) {
 		Name:     "error",
 		Fields:   map[string]string{},
 		Methods:  []store.MethodRecord{},
-		Signatures: []string{
-			"Error() string",
-		},
-		ID: 3,
+		ID:       3,
 	}
 	request, err := http.NewRequest(http.MethodGet, "/api/interface/3", nil)
 	if err != nil {
@@ -115,10 +122,7 @@ func TestGetInterfaces(t *testing.T) {
 			Name:     "error",
 			Fields:   map[string]string{},
 			Methods:  []store.MethodRecord{},
-			Signatures: []string{
-				"Error() string",
-			},
-			ID: 3,
+			ID:       3,
 		},
 		{
 			Package:  "test",
@@ -126,10 +130,7 @@ func TestGetInterfaces(t *testing.T) {
 			Name:     "TestInterface",
 			Fields:   map[string]string{},
 			Methods:  []store.MethodRecord{},
-			Signatures: []string{
-				"TestMethod() int",
-			},
-			ID: 4,
+			ID:       4,
 		},
 	}
 
@@ -169,10 +170,9 @@ func TestGetStruct(t *testing.T) {
 				},
 			},
 		},
-		Signatures: []string{},
-		ID:         1,
+		ID: 1,
 	}
-	request, err := http.NewRequest(http.MethodGet, "/api/struct/1", nil)
+	request, err := http.NewRequest(http.MethodGet, "/api/type/1", nil)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

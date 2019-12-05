@@ -25,8 +25,9 @@ var createMethodStatement *sql.Stmt
 var selectAllMethodStatement *sql.Stmt
 var selectMethodByIDStatement *sql.Stmt
 
+// InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable", "192.168.0.106", "5432", "pi", "types")
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", "localhost", "5432", "postgres", "testpass", "types")
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)

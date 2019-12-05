@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/smanierre/typer-site/store"
 	"log"
 	"net/http"
 	"strconv"
@@ -9,10 +10,11 @@ import (
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){
-	"/interface":  getAllInterfaces,
-	"/interface/": getSingleInterface,
-	"/struct":     getAllStructs,
-	"/struct/":    getSingleStruct,
+	"/interface":     getAllInterfaces,
+	"/interface/":    getSingleInterface,
+	"/type":          getAllTypes,
+	"/type/":         getSingleTypeByID,
+	"/implementers/": getImplementingTypes,
 }
 
 func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
@@ -46,33 +48,75 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(i)
 }
 
-func getAllStructs(w http.ResponseWriter, r *http.Request) {
+func getAllTypes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(typeStore.GetStructs())
+	json.NewEncoder(w).Encode(typeStore.GetTypes())
 }
 
-func getSingleStruct(w http.ResponseWriter, r *http.Request) {
+func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
-	structQuery := r.URL.Path[strings.Index(r.URL.Path, "/struct/")+8:]
-	id, err := strconv.Atoi(structQuery)
+	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
+	id, err := strconv.Atoi(typeQuery)
+	if err != nil {
+		//Going to assume they passed in a name to search for
+		getTypesByName(w, r)
+	}
+	w.Header().Set("content-type", "application/json")
+	typ := typeStore.GetTypeByID(id)
+	if typ.Package == "" {
+		return
+	}
+	json.NewEncoder(w).Encode(typ)
+}
+
+func getTypesByName(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
+	types := typeStore.GetTypesByName(typeQuery)
+	if len(types) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(types)
+}
+
+func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	interfaceIDQuery := r.URL.Path[strings.Index(r.URL.Path, "/implementers/")+14:]
+	interfaceID, err := strconv.Atoi(interfaceIDQuery)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("content-type", "application/json")
-	str := typeStore.GetStruct(id)
-	if str.Package == "" {
-		w.WriteHeader(http.StatusNotFound)
-		return
+	inter := typeStore.GetInterface(interfaceID)
+	var types []store.TypeRecord
+	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
+		for _, t := range typeStore.GetTypes() {
+			if t.ID == v {
+				types = append(types, t)
+				continue
+			}
+		}
 	}
-	json.NewEncoder(w).Encode(str)
+	returnJSON := struct {
+		Interface    store.TypeRecord
+		Implementers []store.TypeRecord
+	}{
+		Interface:    inter,
+		Implementers: types,
+	}
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(returnJSON)
 }

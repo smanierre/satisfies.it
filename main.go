@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	store, err := store.NewStore()
 	db.InitDB()
+	store, err := store.NewStore()
 	if err != nil {
 		log.Fatal(err)
 	}
