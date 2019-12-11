@@ -87,6 +87,12 @@ func (i *InMemoryTypestore) GetTypesByName(name string) []store.TypeRecord {
 	}
 	return types
 }
+
+func (i *InMemoryTypestore) GetImplementingIDs(id int) []int {
+	//Stubbed for now
+	return nil
+}
+
 func TestGetInterface(t *testing.T) {
 	expected := store.TypeRecord{
 		Package:  "builtin",
