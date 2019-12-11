@@ -6,6 +6,7 @@ import (
 
 	// Driver for postgres
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -27,7 +28,8 @@ var selectMethodByIDStatement *sql.Stmt
 
 // InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", "localhost", "5432", "postgres", "testpass", "types")
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		viper.Get("db_host"), viper.Get("db_port"), viper.Get("db_user"), viper.Get("db_password"), viper.Get("db_name"))
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)
