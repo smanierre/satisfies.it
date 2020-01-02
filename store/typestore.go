@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/smanierre/typer"
 	db "github.com/smanierre/typer-site/store/postgres"
+	"github.com/smanierre/typer-site/typer"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application

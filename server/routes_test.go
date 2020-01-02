@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/smanierre/typer"
+	"github.com/smanierre/typer-site/typer"
 	"github.com/smanierre/typer-site/store"
 )
 
