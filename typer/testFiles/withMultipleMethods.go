@@ -28,7 +28,7 @@ func (c Custom) doThing(n float64) *S {
 	return &S{}
 }
 
-func (c Custom) SomethingElse() (b bool, e error, i interface{}) {
+func (c Custom) SomethingElse() (bool, error, interface{}) {
 	return false, nil
 }
 

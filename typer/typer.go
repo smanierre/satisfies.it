@@ -196,11 +196,42 @@ func parseMethods(p string, source []byte) []Method {
 		}
 		m.Name = string(method[2])
 		// TODO: Parse method[3] which contains everything in the method signature after the function name
+		parseMethodSignature(strings.TrimSpace(string(method[3])))
 		methods = append(methods, m)
 	}
 	return methods
 }
 
+// Takes the method signature and returns a map with the keys "paramaters" and "returnValues". If there are none, the key will return an empty slice.
+func parseMethodSignature(sig string) map[string][]string {
+	returnMap := map[string][]string{}
+	chars := strings.Split(sig, "")
+	openParentheses := 0
+	curString := ""
+	paramsDone := false // Params will be done when the first full set of parentheses has been handled
+	for _, v := range chars {
+		if v == "(" {
+			openParentheses++
+			curString += v
+		} else if v == ")" {
+			curString += v
+			openParentheses--
+			if openParentheses == 0 && !paramsDone { // This is the close of the parameter parentheses
+				returnMap["parameters"] = parseParameters([]byte(curString))
+				paramsDone = true
+				curString = ""
+			}
+			if openParentheses == 0 && paramsDone {
+				returnMap["returnValues"] = parseReturnValues([]byte(curString))
+			}
+		} else {
+			curString += v
+		}
+	}
+	return returnMap
+}
+
+// TODO: Update to work with functions being passed in as parameters to a method.
 func parseParameters(b []byte) []string {
 	p := []string{}
 	params := strings.Split(string(b), ",")
@@ -233,6 +264,7 @@ func parseParameters(b []byte) []string {
 	return p
 }
 
+// TODO: Update to work with functions being returned from methods. Also to work with named return values.
 func parseNamelessParams(params []string) []string {
 	empty := true
 	for _, s := range params {
