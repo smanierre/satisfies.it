@@ -195,8 +195,9 @@ func parseMethods(p string, source []byte) []Method {
 			}
 		}
 		m.Name = string(method[2])
-		// TODO: Parse method[3] which contains everything in the method signature after the function name
-		parseMethodSignature(strings.TrimSpace(string(method[3])))
+		signatureMap := parseMethodSignature(strings.TrimSpace(string(method[3])))
+		m.Parameters = signatureMap["parameters"]
+		m.ReturnValues = signatureMap["returnValues"]
 		methods = append(methods, m)
 	}
 	return methods
@@ -228,13 +229,29 @@ func parseMethodSignature(sig string) map[string][]string {
 			curString += v
 		}
 	}
+	fmt.Println(sig)
+	fmt.Println(returnMap)
 	return returnMap
 }
 
 // TODO: Update to work with functions being passed in as parameters to a method.
 func parseParameters(b []byte) []string {
-	p := []string{}
 	params := strings.Split(string(b), ",")
+	if strings.Contains("func", string(b)) {
+		parsedFunctionalParams := []string{}
+		param := ""
+		function := false
+		openParens := 0
+		for _, v := range params {
+			if strings.Contains("func", v) {
+				function = true
+				param += v
+				openParens++
+			}
+			if function { //Finish this. While function and parens are > 0, keep appending to the functional component. If not function, just append parameters then params to end array.
+			}
+		}
+	}
 	if params[0] == "()" {
 		return []string{}
 	}
@@ -246,6 +263,7 @@ func parseParameters(b []byte) []string {
 	}
 
 	typelessParams := 0
+	p := []string{}
 	for _, param := range params {
 		words := strings.Split(strings.TrimSpace(param), " ")
 		if len(words) == 1 {
