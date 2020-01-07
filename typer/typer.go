@@ -234,23 +234,45 @@ func parseMethodSignature(sig string) map[string][]string {
 	return returnMap
 }
 
-// TODO: Update to work with functions being passed in as parameters to a method.
 func parseParameters(b []byte) []string {
-	params := strings.Split(string(b), ",")
-	if strings.Contains("func", string(b)) {
+	paramString := string(b)
+	if len(paramString) > 2 { // String is more than just () so remove the ()
+		paramString = paramString[1 : len(paramString)-1]
+	}
+	params := strings.Split(paramString, ",")
+	if strings.Contains(string(b), "func") {
 		parsedFunctionalParams := []string{}
 		param := ""
 		function := false
 		openParens := 0
 		for _, v := range params {
-			if strings.Contains("func", v) {
+			if strings.Contains(v, "func") {
 				function = true
-				param += v
+				param += strings.TrimSpace(v)
 				openParens++
+				if strings.Contains(v, ")") { // if there are no or just one paramater (no , inside the function), then
+					openParens--
+				} else {
+					param += ", "
+				}
+			} else if function {
+				param += strings.TrimSpace(v)
+				if strings.Contains(v, ")") {
+					openParens--
+				}
+				if !strings.Contains(v, ")") { // If
+					param += ", "
+				}
+			} else if !function {
+				parsedFunctionalParams = append(parsedFunctionalParams, v)
 			}
-			if function { //Finish this. While function and parens are > 0, keep appending to the functional component. If not function, just append parameters then params to end array.
+			if function && openParens == 0 {
+				function = false
+				parsedFunctionalParams = append(parsedFunctionalParams, param)
+				param = ""
 			}
 		}
+		params = parsedFunctionalParams
 	}
 	if params[0] == "()" {
 		return []string{}
@@ -265,6 +287,16 @@ func parseParameters(b []byte) []string {
 	typelessParams := 0
 	p := []string{}
 	for _, param := range params {
+		if strings.Contains(param, "func") { // Functional parameter, add it and move on.
+			if param[0] == '(' { // Remove leading parenthese if it is the first parameter
+				p = append(p, param[1:])
+			} else if param[len(param)-1] == ')' && param[len(param)-2] == ')' { // If the last two characters are
+				p = append(p, param[:len(param)-1])
+			} else {
+				p = append(p, param)
+			}
+			continue
+		}
 		words := strings.Split(strings.TrimSpace(param), " ")
 		if len(words) == 1 {
 			typelessParams++
@@ -282,7 +314,6 @@ func parseParameters(b []byte) []string {
 	return p
 }
 
-// TODO: Update to work with functions being returned from methods. Also to work with named return values.
 func parseNamelessParams(params []string) []string {
 	empty := true
 	for _, s := range params {
