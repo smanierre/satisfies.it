@@ -11,7 +11,6 @@ import (
 
 	"github.com/lib/pq"
 	db "github.com/smanierre/typer-site/store/postgres"
-	"github.com/smanierre/typer-site/typer"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application
@@ -36,7 +35,11 @@ type TypeRecord struct {
 
 // MethodRecord is a type to encapsulate typer.Method but also to let it have an ID
 type MethodRecord struct {
-	typer.Method
+	Package      string   `json:"Package"`
+	Receiver     string   `json:"Receiver"`
+	Name         string   `json:"Name"`
+	Parameters   []string `json:"Parameters"`
+	ReturnValues []string `json:"ReturnValues"`
 	ID         int `json:"ID"`
 	ReceiverID int `json:"ReceiverID"`
 }

@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/smanierre/typer-site/typer"
 	"github.com/smanierre/typer-site/store"
 )
 
@@ -165,14 +164,13 @@ func TestGetStruct(t *testing.T) {
 		Methods: []store.MethodRecord{
 			{
 				ID: 1,
-				Method: typer.Method{
-					Package:    "aims",
-					Receiver:   "*Header",
-					Name:       "FileInfo",
-					Parameters: []string{},
-					ReturnValues: []string{
-						"os.FileInfo",
-					},
+
+				Package:    "aims",
+				Receiver:   "*Header",
+				Name:       "FileInfo",
+				Parameters: []string{},
+				ReturnValues: []string{
+					"os.FileInfo",
 				},
 			},
 		},

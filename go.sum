@@ -2,5 +2,3 @@ github.com/joho/godotenv v1.3.0 h1:Zjp+RcGpHhGlrMbJzXTrZZPrWj+1vfm90La1wgB6Bhc=
 github.com/joho/godotenv v1.3.0/go.mod h1:7hK45KPybAkOC6peb+G5yklZfMxEjkZhHbwpqxOKXbg=
 github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=
 github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
-github.com/smanierre/typer v0.0.0-20200101223049-ad77b29cf94e h1:S7WyTcwcf3YPHnv3dwnA6aoyYQI9WK229Ww2cQExNw8=
-github.com/smanierre/typer v0.0.0-20200101223049-ad77b29cf94e/go.mod h1:bJvVtu3GJWXD36opsxONjCgF8HlzEQ0bLxMN6Q5A9uI=
