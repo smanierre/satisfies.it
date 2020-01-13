@@ -2,11 +2,12 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/smanierre/typer-site/store"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/smanierre/typer-site/store/types"
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){
@@ -101,21 +102,21 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	inter := typeStore.GetInterface(interfaceID)
-	var types []store.TypeRecord
+	var typeList []types.ConcreteTypeRecord
 	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
 		for _, t := range typeStore.GetTypes() {
 			if t.ID == v {
-				types = append(types, t)
+				typeList = append(typeList, t)
 				continue
 			}
 		}
 	}
 	returnJSON := struct {
-		Interface    store.TypeRecord
-		Implementers []store.TypeRecord
+		Interface    types.InterfaceRecord
+		Implementers []types.ConcreteTypeRecord
 	}{
 		Interface:    inter,
-		Implementers: types,
+		Implementers: typeList,
 	}
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(returnJSON)

@@ -11,50 +11,31 @@ import (
 
 	"github.com/lib/pq"
 	db "github.com/smanierre/typer-site/store/postgres"
+	"github.com/smanierre/typer-site/store/types"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
-	GetInterfaces() []TypeRecord
-	GetInterface(id int) TypeRecord
-	GetTypes() []TypeRecord
-	GetTypeByID(id int) TypeRecord
-	GetTypesByName(name string) []TypeRecord
+	GetInterfaces() []types.InterfaceRecord
+	GetInterface(id int) types.InterfaceRecord
+	GetTypes() []types.ConcreteTypeRecord
+	GetTypeByID(id int) types.ConcreteTypeRecord
+	GetTypesByName(name string) []types.ConcreteTypeRecord
 	GetImplementingIDs(id int) []int
-}
-
-// TypeRecord is the same as typer.Type, just with an ID added to it so multiple types with the same name can be distinguished from one another.
-type TypeRecord struct {
-	Package  string            `json:"Package"`
-	Name     string            `json:"Name"`
-	BaseType string            `json:"BaseType"`
-	Fields   map[string]string `json:"Fields"`
-	Methods  []MethodRecord    `json:"Methods"`
-	ID       int               `json:"ID"`
-}
-
-// MethodRecord is a type to encapsulate typer.Method but also to let it have an ID
-type MethodRecord struct {
-	Package      string   `json:"Package"`
-	Receiver     string   `json:"Receiver"`
-	Name         string   `json:"Name"`
-	Parameters   []string `json:"Parameters"`
-	ReturnValues []string `json:"ReturnValues"`
-	ID         int `json:"ID"`
-	ReceiverID int `json:"ReceiverID"`
 }
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
 type TypeStorePGImpl struct {
-	types                 []TypeRecord
-	methods               []MethodRecord
+	interfaces            []types.InterfaceRecord
+	concreteTypes         []types.ConcreteTypeRecord
+	methods               []types.MethodRecord
 	interfaceImplementers map[int][]int
 	lastUpdated           time.Time
 }
 
 // NewStore returns an initialized TypeStore with types already retrieved from the database.
 func NewStore() (TypeStore, error) {
-	t := TypeStorePGImpl{types: []TypeRecord{}}
+	t := TypeStorePGImpl{concreteTypes: []types.ConcreteTypeRecord{}, interfaces: []types.InterfaceRecord{}}
 	err := t.getAndParseTypes()
 	if err != nil {
 		log.Printf("Error: %s\n", err)
@@ -69,9 +50,9 @@ func NewStore() (TypeStore, error) {
 }
 
 // GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
-func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
+func (t *TypeStorePGImpl) GetInterfaces() []types.InterfaceRecord {
 	t.updateStore()
-	var interfaces []TypeRecord
+	var interfaces []types.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "interface" {
 			interfaces = append(interfaces, v)
@@ -80,21 +61,21 @@ func (t *TypeStorePGImpl) GetInterfaces() []TypeRecord {
 	return interfaces
 }
 
-// GetInterface returns a TypeRecord matching the id if it exists and is an interface.
-func (t *TypeStorePGImpl) GetInterface(id int) TypeRecord {
+// GetInterface returns a types.ConcreteTypeRecord matching the id if it exists and is an interface.
+func (t *TypeStorePGImpl) GetInterface(id int) types.ConcreteTypeRecord {
 	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType == "interface" && v.ID == id {
 			return v
 		}
 	}
-	return TypeRecord{}
+	return types.ConcreteTypeRecord{}
 }
 
 // GetTypes returns a slice of TypeRecords containing all the structs in the store.
-func (t *TypeStorePGImpl) GetTypes() []TypeRecord {
+func (t *TypeStorePGImpl) GetTypes() []types.ConcreteTypeRecord {
 	t.updateStore()
-	var types []TypeRecord
+	var types []types.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType != "interface" {
 			types = append(types, v)
@@ -103,21 +84,21 @@ func (t *TypeStorePGImpl) GetTypes() []TypeRecord {
 	return types
 }
 
-// GetTypeByID returns a TypeRecord matching the id if it exists and is a struct.
-func (t *TypeStorePGImpl) GetTypeByID(id int) TypeRecord {
+// GetTypeByID returns a types.ConcreteTypeRecord matching the id if it exists and is a struct.
+func (t *TypeStorePGImpl) GetTypeByID(id int) types.ConcreteTypeRecord {
 	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType != "interface" && v.ID == id {
 			return v
 		}
 	}
-	return TypeRecord{}
+	return types.ConcreteTypeRecord{}
 }
 
 //GetTypesByName returns a type with the given name as long as it isn't an interface
-func (t *TypeStorePGImpl) GetTypesByName(name string) []TypeRecord {
+func (t *TypeStorePGImpl) GetTypesByName(name string) []types.ConcreteTypeRecord {
 	t.updateStore()
-	var types []TypeRecord
+	var types []types.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "struct" && v.Name == name {
 			types = append(types, v)
@@ -157,23 +138,23 @@ func (t *TypeStorePGImpl) getAndParseTypes() error {
 		return fmt.Errorf("unable to retrieve types from database: %s", err)
 	}
 	defer rows.Close()
-	var types []TypeRecord
-	var ty TypeRecord
+	var typeList []types.ConcreteTypeRecord
+	var ty types.ConcreteTypeRecord
 	var s sql.NullString
 	for rows.Next() {
 		// If this isn'y here to reset t, the methods just keep on stacking up.
-		ty = TypeRecord{}
+		ty = types.ConcreteTypeRecord{}
 		if err := rows.Scan(&ty.ID, &ty.Package, &ty.Name, &ty.BaseType, &s); err != nil {
-			return fmt.Errorf("unable to parse row into TypeRecord: %s", err)
+			return fmt.Errorf("unable to parse row into types.ConcreteTypeRecord: %s", err)
 		}
 		if s.Valid {
 			b := bytes.NewBufferString(s.String)
 			decoder := json.NewDecoder(b)
 			decoder.Decode(&ty.Fields)
 		}
-		types = append(types, ty)
+		typeList = append(typeList, ty)
 	}
-	t.types = types
+	t.types = typeList
 	return nil
 }
 
@@ -183,8 +164,8 @@ func (t *TypeStorePGImpl) getAndParseMethods() error {
 		return fmt.Errorf("unable to retrieve methods from database: %s", err)
 	}
 	defer rows.Close()
-	var methods []MethodRecord
-	var m MethodRecord
+	var methods []types.MethodRecord
+	var m types.MethodRecord
 	var typeIDHolder int
 	for rows.Next() {
 		if err := rows.Scan(&m.ID, &m.Package, &typeIDHolder, &m.Name, pq.Array(&m.Parameters), pq.Array(&m.ReturnValues)); err != nil {
@@ -230,7 +211,7 @@ func (t *TypeStorePGImpl) resolveImplementations() {
 	t.interfaceImplementers = interfaceImplementers
 }
 
-func (iface TypeRecord) checkIfImplements(typ TypeRecord) bool {
+func (iface types.ConcreteTypeRecord) checkIfImplements(typ types.ConcreteTypeRecord) bool {
 	for _, m := range typ.Methods {
 		for i, im := range iface.Methods {
 			if m.Equals(im) {
@@ -244,8 +225,8 @@ func (iface TypeRecord) checkIfImplements(typ TypeRecord) bool {
 	return false
 }
 
-// Equals checks if the provided MethodRecord equals the one being called on. This method ignores ID and Package since those are irrelevant to interface implementation.
-func (m MethodRecord) Equals(record MethodRecord) bool {
+// Equals checks if the provided types.MethodRecord equals the one being called on. This method ignores ID and Package since those are irrelevant to interface implementation.
+func (m types.MethodRecord) Equals(record types.MethodRecord) bool {
 	if m.Receiver != record.Receiver {
 		return false
 	}
