@@ -1,4 +1,4 @@
-package types
+package model
 
 // InterfaceRecord is a type that represents an interface parsed from a go source file.
 type InterfaceRecord struct {
