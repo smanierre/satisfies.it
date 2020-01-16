@@ -18,15 +18,16 @@ func ExtractInterfaces(filename string) ([]model.InterfaceRecord, error) {
 	}
 	visitor := &interfaceVisitor{}
 	ast.Walk(visitor, f)
+	fmt.Printf("%+v\n", visitor.interfaces)
 	return visitor.interfaces, nil
 }
 
 type interfaceVisitor struct {
 	interfaces  []model.InterfaceRecord
+	prevToken   ast.Node
 	packageName string
 }
 
-//TODO: How to get the name of the interface being parsed?
 func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 	switch node.(type) {
 	case *ast.File:
@@ -35,8 +36,11 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 	case *ast.InterfaceType:
 		record := model.InterfaceRecord{}
 		record.Package = iv.packageName
+		previousIdent := iv.prevToken.(*ast.Ident)
+		record.Name = previousIdent.String()
 		iface := node.(*ast.InterfaceType)
 		for _, method := range iface.Methods.List {
+			// TODO: exclude methods that are unexported, but also find a way to indicate they can't be implemented outside of the package
 			methodRecord := model.MethodRecord{}
 			methodRecord.Package = iv.packageName
 			methodRecord.Name = method.Names[0].String()
@@ -80,6 +84,9 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 			record.Methods = append(record.Methods, methodRecord)
 		}
 		iv.interfaces = append(iv.interfaces, record)
+	}
+	if node != nil {
+		iv.prevToken = node
 	}
 	return iv
 }
