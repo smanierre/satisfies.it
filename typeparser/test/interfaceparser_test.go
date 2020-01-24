@@ -152,7 +152,91 @@ func TestExtractInterfaces(t *testing.T) {
 					ID:            -1,
 				},
 			},
-		},
+		}, {
+			Name:     "With custom type pointer slice parameter",
+			Filepath: "../../testFiles/customPointerSliceParameter.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "CustomPointerSliceParameter",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[]*io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With custom type slice parameter",
+			Filepath: "../../testFiles/customSliceParameter.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "CustomSliceParameter",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[]io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of builtin pointers",
+			Filepath: "../../testFiles/pointerSliceBuiltinPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "PointerSliceBuiltinPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"*[]*int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of custom pointers",
+			Filepath: "../../testFiles/pointerSliceCustomPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "PointerSliceCustomPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"*[]*io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, //TODO: 2d slices, interfaces, pointers to slices(both builtin and custom)
 	}
 
 	for _, tt := range tc {

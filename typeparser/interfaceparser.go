@@ -97,15 +97,42 @@ func parseParameters(params []*ast.Field) []string {
 			case *ast.SelectorExpr: //pointer type is a custom type e.g. io.Writer
 				selectorExpr := starExpr.X.(*ast.SelectorExpr)
 				parameters = append(parameters, fmt.Sprintf("*%s.%s", selectorExpr.X, selectorExpr.Sel))
-			case *ast.ArrayType: //pointer type is a slice or array e.g. *[]int
+			case *ast.ArrayType: //pointer type is a slice or array e.g. *[]
 				arrayType := starExpr.X.(*ast.ArrayType)
-				parameters = append(parameters, fmt.Sprintf("[]*%s", arrayType.Elt))
-			default:
+				switch arrayType.Elt.(type) {
+				case *ast.StarExpr: //pointer is to a slice of pointers e.g. *[]*
+					starExpr := arrayType.Elt.(*ast.StarExpr)
+					switch starExpr.X.(type) {
+					case *ast.Ident: // Pointer type is builtin e.g. *[]*int
+						parameters = append(parameters, fmt.Sprintf("*[]*%s", starExpr.X))
+					case *ast.SelectorExpr: // Pointer type is a custom type e.g. *[]*io.Writer
+						selectorExpr := starExpr.X.(*ast.SelectorExpr)
+						parameters = append(parameters, fmt.Sprintf("*[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+					}
+				case *ast.Ident: // pointer is to a slice of builtin types e.g. *[]int
+					parameters = append(parameters, fmt.Sprintf("*[]%s", arrayType.Elt))
+				}
+			case *ast.Ident: //pointer type is a builtin type e.g. *int
 				parameters = append(parameters, fmt.Sprintf("*%s", starExpr.X))
 			}
 		case *ast.ArrayType: //Array e.g. []int
 			arrayType := p.Type.(*ast.ArrayType)
-			parameters = append(parameters, fmt.Sprintf("[]%s", arrayType.Elt))
+			switch arrayType.Elt.(type) {
+			case *ast.StarExpr: //Array of pointers
+				starExpr := arrayType.Elt.(*ast.StarExpr)
+				switch starExpr.X.(type) {
+				case *ast.Ident: //Array of builtin pointers e.g. *int
+					parameters = append(parameters, fmt.Sprintf("[]*%s", starExpr.X))
+				case *ast.SelectorExpr: //Array of custom type pointers e.g. *io.Writer
+					selectorExpr := starExpr.X.(*ast.SelectorExpr)
+					parameters = append(parameters, fmt.Sprintf("[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+				}
+			case *ast.SelectorExpr: //Array of custom types e.g. io.Writer
+				selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
+				parameters = append(parameters, fmt.Sprintf("[]%s.%s", selectorExpr.X, selectorExpr.Sel))
+			case *ast.Ident: //Array of builting types e.g. int
+				parameters = append(parameters, fmt.Sprintf("[]%s", arrayType.Elt))
+			}
 		default:
 			fmt.Printf("%T\n", p.Type)
 		}
