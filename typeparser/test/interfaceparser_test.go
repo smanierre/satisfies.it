@@ -236,7 +236,154 @@ func TestExtractInterfaces(t *testing.T) {
 					ID:            -1,
 				},
 			},
-		}, //TODO: 2d slices, interfaces, pointers to slices(both builtin and custom)
+		}, {
+			Name:     "With pointer to slice of builtin types",
+			Filepath: "../../testFiles/pointerSliceBuiltin.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "PointerSliceBuiltin",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"*[]int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of custom types",
+			Filepath: "../../testFiles/pointerSliceCustomType.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "PointerSliceCustomType",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"*[]io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With empty interface parameter",
+			Filepath: "../../testFiles/emptyInterface.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "EmptyInterface",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"interface{}"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of builtin types",
+			Filepath: "../../testFiles/2dBuiltinSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "TwoDBuiltinSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[][]int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of custom types",
+			Filepath: "../../testFiles/2dCustomTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "TwoDCustomTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[][]io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of pointers to custom types",
+			Filepath: "../../testFiles/2dPointerCustomTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "TwoDPointerCustomTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[][]*io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of builtin types",
+			Filepath: "../../testFiles/2dPointerBuiltinTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "TwoDPointerBuiltinTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[][]*int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tc {

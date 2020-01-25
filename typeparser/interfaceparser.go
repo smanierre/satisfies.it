@@ -39,7 +39,10 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 		record.Methods = []model.MethodRecord{}
 		// Default the record ID to -1 since the database will handle it on insert.
 		record.ID = -1
-		previousIdent := iv.prevToken.(*ast.Ident)
+		previousIdent, ok := iv.prevToken.(*ast.Ident)
+		if !ok { // This is an interface that is a parameter to a method
+			return iv
+		}
 		record.Name = previousIdent.String()
 		record.Implementable = true
 		iface := node.(*ast.InterfaceType)
@@ -83,6 +86,7 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 
 func parseParameters(params []*ast.Field) []string {
 	parameters := []string{}
+
 	for _, p := range params {
 		switch p.Type.(type) {
 		case *ast.Ident: //Regular identifier e.g. string
@@ -109,6 +113,9 @@ func parseParameters(params []*ast.Field) []string {
 						selectorExpr := starExpr.X.(*ast.SelectorExpr)
 						parameters = append(parameters, fmt.Sprintf("*[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
 					}
+				case *ast.SelectorExpr: // pointer is to a slice of custom types e.g. *[]io.Writer
+					selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
+					parameters = append(parameters, fmt.Sprintf("*[]%s.%s", selectorExpr.X, selectorExpr.Sel))
 				case *ast.Ident: // pointer is to a slice of builtin types e.g. *[]int
 					parameters = append(parameters, fmt.Sprintf("*[]%s", arrayType.Elt))
 				}
@@ -132,6 +139,29 @@ func parseParameters(params []*ast.Field) []string {
 				parameters = append(parameters, fmt.Sprintf("[]%s.%s", selectorExpr.X, selectorExpr.Sel))
 			case *ast.Ident: //Array of builting types e.g. int
 				parameters = append(parameters, fmt.Sprintf("[]%s", arrayType.Elt))
+			case *ast.ArrayType: //Array of Arrays e.g. [][]
+				arrayType := arrayType.Elt.(*ast.ArrayType)
+				switch arrayType.Elt.(type) {
+				case *ast.Ident: //Array of builtin types e.g. [][]int
+					parameters = append(parameters, fmt.Sprintf("[][]%s", arrayType.Elt))
+				case *ast.SelectorExpr: //Array of custom types e.g. [][]io.Writer
+					selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
+					parameters = append(parameters, fmt.Sprintf("[][]%s.%s", selectorExpr.X, selectorExpr.Sel))
+				case *ast.StarExpr: //Array of pointers e.g. [][]*
+					starExpr := arrayType.Elt.(*ast.StarExpr)
+					switch starExpr.X.(type) {
+					case *ast.SelectorExpr: //Array of pointers to custom types e.g. [][]*io.Writer
+						selectorExpr := starExpr.X.(*ast.SelectorExpr)
+						parameters = append(parameters, fmt.Sprintf("[][]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+					case *ast.Ident: //Array of pointers to builtin types e.g. [][]*int
+						parameters = append(parameters, fmt.Sprintf("[][]*%s", starExpr.X))
+					}
+				}
+			}
+		case *ast.InterfaceType: //Interface parameter, right now only empty interfaces are supported e.g. interface{}
+			interfaceType := p.Type.(*ast.InterfaceType)
+			if len(interfaceType.Methods.List) == 0 { // only going to handle empty interfaces for now. If you aren't requiring an empty interface, don't be lazy and just define it...
+				parameters = append(parameters, fmt.Sprintf("interface{}"))
 			}
 		default:
 			fmt.Printf("%T\n", p.Type)
