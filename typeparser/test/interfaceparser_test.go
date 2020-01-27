@@ -8,7 +8,7 @@ import (
 	"github.com/smanierre/typer-site/typeparser"
 )
 
-func TestExtractInterfaces(t *testing.T) {
+func TestExtractedInterfaceParameters(t *testing.T) {
 	tc := []struct {
 		Name     string
 		Filepath string
@@ -383,9 +383,514 @@ func TestExtractInterfaces(t *testing.T) {
 					ID:            -1,
 				},
 			},
+		}, {
+			Name:     "multiple parameters of varying types",
+			Filepath: "../../testFiles/multipleParameters.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "MultipleParameters",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"[][]*int", "int", "io.Writer", "interface{}", "*int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
 		},
 	}
 
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			results, err := typeparser.ExtractInterfaces(tt.Filepath)
+			if err != nil {
+				t.Errorf("%s\n", err.Error())
+			}
+			if !reflect.DeepEqual(results, tt.Expected) {
+				t.Errorf("got: %+v wanted: %+v\n", results, tt.Expected)
+			}
+		})
+	}
+}
+
+func TestExtractedInterfaceReturnValues(t *testing.T) {
+
+	tc := []struct {
+		Name     string
+		Filepath string
+		Expected []model.InterfaceRecord
+	}{
+		{
+			Name:     "With custom type return value",
+			Filepath: "../../testFiles/returnCustomType.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnCustomType",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "with builtin return value",
+			Filepath: "../../testFiles/returnBuiltinType.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnBuiltinType",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With built in pointer type return value",
+			Filepath: "../../testFiles/returnBuiltinPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnBuiltinPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With custom pointer type return value",
+			Filepath: "../../testFiles/returnCustomPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnCustomPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With builtin slice return value",
+			Filepath: "../../testFiles/returnBuiltinSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnBuiltinSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[]int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With builtin pointer slice return value",
+			Filepath: "../../testFiles/returnBuiltinPointerSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnBuiltinPointerSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[]*int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With custom type pointer slice return value",
+			Filepath: "../../testFiles/returnCustomPointerSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnCustomPointerSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[]*io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With custom type slice return value",
+			Filepath: "../../testFiles/returnCustomSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnCustomSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[]io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of builtin pointers return value",
+			Filepath: "../../testFiles/returnPointerSliceBuiltinPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnPointerSliceBuiltinPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*[]*int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of custom pointers return value",
+			Filepath: "../../testFiles/returnPointerSliceCustomPointer.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnPointerSliceCustomPointer",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*[]*io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of builtin types return type",
+			Filepath: "../../testFiles/returnPointerSliceBuiltin.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnPointerSliceBuiltin",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*[]int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With pointer to slice of custom types return value",
+			Filepath: "../../testFiles/returnPointerSliceCustomType.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnPointerSliceCustomType",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"*[]io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "With empty interface return value",
+			Filepath: "../../testFiles/returnEmptyInterface.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnEmptyInterface",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"interface{}"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of builtin types return value",
+			Filepath: "../../testFiles/return2dBuiltinSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnTwoDBuiltinSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[][]int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of custom types return value",
+			Filepath: "../../testFiles/return2dCustomTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnTwoDCustomTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[][]io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of pointers to custom types return value",
+			Filepath: "../../testFiles/return2dPointerCustomTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnTwoDPointerCustomTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[][]*io.Writer"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "2d slice of builtin pointer types",
+			Filepath: "../../testFiles/return2dPointerBuiltinTypeSlice.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnTwoDPointerBuiltinTypeSlice",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[][]*int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "multiple return values of varying types",
+			Filepath: "../../testFiles/returnMultiple.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "ReturnMultiple",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{},
+							ReturnValues: []string{"[][]*int", "int", "io.Writer", "interface{}", "*int"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			results, err := typeparser.ExtractInterfaces(tt.Filepath)
+			if err != nil {
+				t.Errorf("%s\n", err.Error())
+			}
+			if !reflect.DeepEqual(results, tt.Expected) {
+				t.Errorf("got: %+v wanted: %+v\n", results, tt.Expected)
+			}
+		})
+	}
+}
+
+func TestMiscellaneousInterfaceCases(t *testing.T) {
+	tc := []struct {
+		Name     string
+		Filepath string
+		Expected []model.InterfaceRecord
+	}{
+		{
+			Name:     "Multiple Empty interfaces",
+			Filepath: "../../testFiles/multipleEmptyInterfaces.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package:       "test",
+					Name:          "InterfaceOne",
+					Methods:       []model.MethodRecord{},
+					Implementable: true,
+					ID:            -1,
+				}, {
+					Package:       "test",
+					Name:          "InterfaceTwo",
+					Methods:       []model.MethodRecord{},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		},
+		{
+			Name:     "Multiple non-empty interfaces",
+			Filepath: "../../testFiles/multipleNonEmptyInterfaces.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "InterfaceOne",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"int", "io.Writer"},
+							ReturnValues: []string{"[][]*int", "string"},
+							ReceiverID:   -1,
+							ID:           -1,
+						}, {
+							Package:      "test",
+							Name:         "MethodTwo",
+							Parameters:   []string{},
+							ReturnValues: []string{"string"},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				}, {
+					Package: "test",
+					Name:    "InterfaceTwo",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"interface{}", "*int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: false,
+					ID:            -1,
+				},
+			},
+		},
+	}
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
 			results, err := typeparser.ExtractInterfaces(tt.Filepath)

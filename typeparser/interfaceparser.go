@@ -61,13 +61,13 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 			if funcDec.Params.NumFields() == 0 {
 				methodRecord.Parameters = []string{}
 			} else {
-				methodRecord.Parameters = parseParameters(funcDec.Params.List)
+				methodRecord.Parameters = parseFieldList(funcDec.Params.List)
 			}
 			// Check to see how many return values there are, then parse any that exist
 			if funcDec.Results.NumFields() == 0 {
 				methodRecord.ReturnValues = []string{}
 			} else {
-				methodRecord.ReturnValues = parseReturnValues(funcDec.Results.List)
+				methodRecord.ReturnValues = parseFieldList(funcDec.Results.List)
 			}
 
 			// Set ID = -1 since the database will handle assigning an ID.
@@ -84,7 +84,7 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 	return iv
 }
 
-func parseParameters(params []*ast.Field) []string {
+func parseFieldList(params []*ast.Field) []string {
 	parameters := []string{}
 
 	for _, p := range params {
@@ -168,30 +168,4 @@ func parseParameters(params []*ast.Field) []string {
 		}
 	}
 	return parameters
-}
-
-func parseReturnValues(values []*ast.Field) []string {
-	returnValues := []string{}
-	for _, r := range values {
-		switch r.Type.(type) {
-		case *ast.ArrayType:
-			at := r.Type.(*ast.ArrayType)
-			// Check to see what type the array is and parse accordingly
-			switch at.Elt.(type) {
-			case *ast.SelectorExpr:
-				se := at.Elt.(*ast.SelectorExpr)
-				returnValues = append(returnValues, fmt.Sprintf("[]%s", se.Sel.Name))
-			case *ast.Ident:
-				id := at.Elt.(*ast.Ident)
-				returnValues = append(returnValues, fmt.Sprintf("[]%s", id.String()))
-			}
-		case *ast.SelectorExpr:
-			se := r.Type.(*ast.SelectorExpr)
-			returnValues = append(returnValues, se.Sel.Name)
-		case *ast.Ident:
-			id := r.Type.(*ast.Ident)
-			returnValues = append(returnValues, id.Name)
-		}
-	}
-	return returnValues
 }
