@@ -889,6 +889,35 @@ func TestMiscellaneousInterfaceCases(t *testing.T) {
 					ID:            -1,
 				},
 			},
+		}, {
+			Name:     "embeded interfaces",
+			Filepath: "../../testFiles/embeddedInterfaces.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "WithEmbedded",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "io.Reader",
+							Parameters:   []string{},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+						{
+							Package:      "test",
+							Name:         "io.Writer",
+							Parameters:   []string{},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
 		},
 	}
 	for _, tt := range tc {

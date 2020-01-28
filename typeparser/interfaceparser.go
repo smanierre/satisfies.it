@@ -9,7 +9,7 @@ import (
 	"github.com/smanierre/typer-site/model"
 )
 
-// ExtractInterfaces takes a filename and parses the file extract all the interfaces out.
+// ExtractInterfaces takes a filename and parses the file to extract all the interfaces out.
 func ExtractInterfaces(filename string) ([]model.InterfaceRecord, error) {
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, nil, parser.AllErrors)
@@ -18,7 +18,6 @@ func ExtractInterfaces(filename string) ([]model.InterfaceRecord, error) {
 	}
 	visitor := &interfaceVisitor{}
 	ast.Walk(visitor, f)
-	// fmt.Println(visitor.interfaces)
 	return visitor.interfaces, nil
 }
 
@@ -48,13 +47,40 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 		iface := node.(*ast.InterfaceType)
 		for _, method := range iface.Methods.List {
 			// If the method is unexported, then don't add it to the interface and also make the interface as un-implementable
-			if method.Names[0].Name[0] >= 97 && method.Names[0].Name[0] <= 122 {
+			if len(method.Names) != 0 && method.Names[0].Name[0] >= 97 && method.Names[0].Name[0] <= 122 {
 				record.Implementable = false
 				continue
 			}
 			methodRecord := model.MethodRecord{}
 			methodRecord.Package = iv.packageName
-			methodRecord.Name = method.Names[0].String()
+			if len(method.Names) == 0 { //Embedded interface
+				switch method.Type.(type) {
+				case *ast.Ident: //Embedded interface is within the same package
+					ident := method.Type.(*ast.Ident)
+					if ident.Name[0] >= 97 && ident.Name[0] <= 122 {
+						record.Implementable = false
+						continue
+					}
+					methodRecord.Name = fmt.Sprintf("%s.%s", methodRecord.Package, ident.Name)
+					methodRecord.Parameters = []string{}
+					methodRecord.ReturnValues = []string{}
+					methodRecord.ReceiverID = -1
+					methodRecord.ID = -1
+					record.Methods = append(record.Methods, methodRecord)
+					continue
+				case *ast.SelectorExpr:
+					selectorExpr := method.Type.(*ast.SelectorExpr)
+					methodRecord.Name = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
+					methodRecord.Parameters = []string{}
+					methodRecord.ReturnValues = []string{}
+					methodRecord.ReceiverID = -1
+					methodRecord.ID = -1
+					record.Methods = append(record.Methods, methodRecord)
+					continue
+				}
+			} else {
+				methodRecord.Name = method.Names[0].String()
+			}
 			funcDec := method.Type.(*ast.FuncType)
 
 			// Check to see how many parameters there are, and then parse if there are any
@@ -112,15 +138,21 @@ func parseFieldList(params []*ast.Field) []string {
 					case *ast.SelectorExpr: // Pointer type is a custom type e.g. *[]*io.Writer
 						selectorExpr := starExpr.X.(*ast.SelectorExpr)
 						parameters = append(parameters, fmt.Sprintf("*[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+					default: //Catch and log any uncaught cases to add in
+						fmt.Printf("Uncaught type in parsing type of *[]* method parameter: %T\n", starExpr.X)
 					}
 				case *ast.SelectorExpr: // pointer is to a slice of custom types e.g. *[]io.Writer
 					selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
 					parameters = append(parameters, fmt.Sprintf("*[]%s.%s", selectorExpr.X, selectorExpr.Sel))
 				case *ast.Ident: // pointer is to a slice of builtin types e.g. *[]int
 					parameters = append(parameters, fmt.Sprintf("*[]%s", arrayType.Elt))
+				default: //Catch and log any uncaught cases to add in
+					fmt.Printf("Uncaught type in parsing type of pointer slice(*[]) method parameter: %T\n", arrayType.Elt)
 				}
 			case *ast.Ident: //pointer type is a builtin type e.g. *int
 				parameters = append(parameters, fmt.Sprintf("*%s", starExpr.X))
+			default: //Catch and log any uncaught cases to add in
+				fmt.Printf("Uncaught type in parsing type of pointer method parameter: %T\n", starExpr.X)
 			}
 		case *ast.ArrayType: //Array e.g. []int
 			arrayType := p.Type.(*ast.ArrayType)
@@ -133,6 +165,8 @@ func parseFieldList(params []*ast.Field) []string {
 				case *ast.SelectorExpr: //Array of custom type pointers e.g. *io.Writer
 					selectorExpr := starExpr.X.(*ast.SelectorExpr)
 					parameters = append(parameters, fmt.Sprintf("[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+				default: //Catch and log any uncaught cases to add in
+					fmt.Printf("Uncaught type in parsing type of slice of pointers([]*) parameter: %T\n", starExpr.X)
 				}
 			case *ast.SelectorExpr: //Array of custom types e.g. io.Writer
 				selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
@@ -155,16 +189,22 @@ func parseFieldList(params []*ast.Field) []string {
 						parameters = append(parameters, fmt.Sprintf("[][]*%s.%s", selectorExpr.X, selectorExpr.Sel))
 					case *ast.Ident: //Array of pointers to builtin types e.g. [][]*int
 						parameters = append(parameters, fmt.Sprintf("[][]*%s", starExpr.X))
+					default: //Catch and log any uncaught cases to add in
+						fmt.Printf("Uncaught type in parsing type of 2d map of pointers([][]*) parameter: %T\n", starExpr.X)
 					}
+				default: //Catch and log any uncaught cases to add in
+					fmt.Printf("Uncaught type in parsing type of 2d slice ([][]) parameter: %T\n", arrayType.Elt)
 				}
+			default: //Catch and log any uncaught cases to add in
+				fmt.Printf("Uncaught type in parsing slice type parameter: %T\n", arrayType.Elt)
 			}
 		case *ast.InterfaceType: //Interface parameter, right now only empty interfaces are supported e.g. interface{}
 			interfaceType := p.Type.(*ast.InterfaceType)
 			if len(interfaceType.Methods.List) == 0 { // only going to handle empty interfaces for now. If you aren't requiring an empty interface, don't be lazy and just define it...
 				parameters = append(parameters, fmt.Sprintf("interface{}"))
 			}
-		default:
-			fmt.Printf("%T\n", p.Type)
+		default: //Catch and log any uncaught cases to add in
+			fmt.Printf("Uncaught type in parsing method parameter: %T\n", p.Type)
 		}
 	}
 	return parameters
