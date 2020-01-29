@@ -404,6 +404,111 @@ func TestExtractedInterfaceParameters(t *testing.T) {
 					ID:            -1,
 				},
 			},
+		}, {
+			Name:     "map of builtin types",
+			Filepath: "../../testFiles/builtinMapTypes.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "BuiltinMap",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"map[string]int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "map of custom types",
+			Filepath: "../../testFiles/customMap.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "CustomMap",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"map[io.Writer]io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "builtin variadic parameters",
+			Filepath: "../../testFiles/builtinVariadic.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "BuiltinVariadic",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"...int"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "custom variadic parameters",
+			Filepath: "../../testFiles/customVariadic.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "CustomVariadic",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"...io.Writer"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
+		}, {
+			Name:     "interface variadic parameters",
+			Filepath: "../../testFiles/interfaceVariadic.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "InterfaceVariadic",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"...interface{}"},
+							ReturnValues: []string{},
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
 		},
 	}
 
