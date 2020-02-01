@@ -102,6 +102,14 @@ func (cv *concreteTypeVisitor) Visit(node ast.Node) ast.Visitor {
 					case *ast.SelectorExpr: //Valye type is a custom type e.g. io.Writer
 						selectorExpr := mapType.Value.(*ast.SelectorExpr)
 						value = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
+					case *ast.StarExpr: //Value type is a pointer
+						starExpr := mapType.Value.(*ast.StarExpr)
+						switch starExpr.X.(type) {
+						case *ast.Ident: //Map value pointer type is to a builtin type or a local custom type
+
+						default: //Catch and log any unhandled cases to add in later
+							fmt.Printf("Uncaught type in parsing map pointer value type struct field: %T\n", starExpr.X)
+						}
 					default: //Catch and llog any unhandled cases to add in later
 						fmt.Printf("Uncaught type in parsing struct field map value: %T\n", mapType.Value)
 					}
@@ -115,6 +123,30 @@ func (cv *concreteTypeVisitor) Visit(node ast.Node) ast.Visitor {
 					case *ast.SelectorExpr: //Pointer is a custom type
 						selectorExpr := starExpr.X.(*ast.SelectorExpr)
 						parseSelectorExpr(field.Names, selectorExpr, structRecord.Fields, cv.packageName, "*")
+					case *ast.StarExpr: //Pointer is to another pointer
+						starExpr := starExpr.X.(*ast.StarExpr)
+						switch starExpr.X.(type) {
+						case *ast.Ident: //Pointer pointer is a builtin type or local custom type
+							ident := starExpr.X.(*ast.Ident)
+							parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "**")
+						default: //Catch and log any unhandled cases to add in later
+							fmt.Printf("Uncaught type when parsing pointer to pointer struct field: %T\n", starExpr.X)
+						}
+					case *ast.ArrayType: //Pointer is to an array e.g. *[]
+						arrayType := starExpr.X.(*ast.ArrayType)
+						switch arrayType.Elt.(type) {
+						case *ast.StarExpr: //Pointer array is to a pointer e.g. *[]*
+							starExpr := arrayType.Elt.(*ast.StarExpr)
+							switch starExpr.X.(type) {
+							case *ast.Ident: //Pointer array of pointers is builtin types or local custom type
+								ident := starExpr.X.(*ast.Ident)
+								parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "*[]*")
+							default: //Catch and log any unhandled cases to add in later
+								fmt.Printf("Uncaught type when parsing pointer to array of pointers struct field: %T\n", starExpr.X)
+							}
+						default: //Catch and log any unhandled cases to add in later
+							fmt.Printf("Uncaught type when parsing pointer to array struct field: %T\n", arrayType.Elt)
+						}
 					default: //Catch and log any unhandled cases to add in later
 						fmt.Printf("Uncaught type when parsing pointer struct field: %T\n", starExpr.X)
 					}
@@ -144,6 +176,13 @@ func (cv *concreteTypeVisitor) Visit(node ast.Node) ast.Visitor {
 						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("%s", chanType.Value)
 					default: //Catch and log any uncaught cases to add in
 						fmt.Printf("Uncaught type in parsing chan type: %T\n", chanType.Value)
+					}
+				case *ast.InterfaceType: //Field is an interface
+					interfaceType := field.Type.(*ast.InterfaceType)
+					if len(interfaceType.Methods.List) == 0 {
+						structRecord.Fields[field.Names[0].Name] = "interface{}"
+					} else {
+						fmt.Printf("Non empty interface in struct field in type: %s\n", structRecord.Name)
 					}
 				default: //Catch and log any unhandled cases to add in later
 					fmt.Printf("Uncaught type in struct field parsing: %T\n", field.Type)
