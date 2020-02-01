@@ -22,7 +22,7 @@ func main() {
 	interfaces := []model.InterfaceRecord{}
 
 	walkFunc := func(path string, info os.FileInfo, err error) error {
-		fmt.Println("Parsing file: " + path)
+		// fmt.Println("Parsing file: " + path)
 		if !strings.Contains(path, "_test.go") && path[len(path)-3:] == ".go" {
 			file, err := os.Open(path)
 			defer file.Close()
