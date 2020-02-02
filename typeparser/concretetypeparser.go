@@ -5,9 +5,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"strings"
 
 	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/util"
 )
 
 type concreteTypeVisitor struct {
@@ -24,6 +24,7 @@ func ExtractConcreteTypes(filename string) ([]model.ConcreteTypeRecord, error) {
 		return nil, fmt.Errorf("unable to parse file: %s", err.Error())
 	}
 	visitor := &concreteTypeVisitor{}
+	visitor.types = []model.ConcreteTypeRecord{}
 	ast.Walk(visitor, f)
 	return visitor.types, nil
 }
@@ -33,182 +34,32 @@ func (cv *concreteTypeVisitor) Visit(node ast.Node) ast.Visitor {
 	case *ast.File:
 		file := node.(*ast.File)
 		cv.packageName = file.Name.Name
-	case *ast.StructType:
-		structType := node.(*ast.StructType)
-		structRecord := model.ConcreteTypeRecord{}
-		structRecord.Package = cv.packageName
-		structRecord.Name = fmt.Sprint(cv.prevToken)
-		structRecord.BaseType = "struct"
-		structRecord.Fields = map[string]string{}
-		structRecord.Methods = []model.MethodRecord{}
-		structRecord.ID = -1
-		if len(structType.Fields.List) != 0 {
-			for _, field := range structType.Fields.List {
-				switch field.Type.(type) {
-				case *ast.Ident: //Field is a regular type or local custom type e.g. int
-					ident := field.Type.(*ast.Ident)
-					parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "")
-				case *ast.SelectorExpr: //Field is a custom type e.g. io.Writer
-					selectorExpr := field.Type.(*ast.SelectorExpr)
-					parseSelectorExpr(field.Names, selectorExpr, structRecord.Fields, cv.packageName, "")
-				case *ast.ArrayType: //Field is an array type e.g. []int
-					arrayType := field.Type.(*ast.ArrayType)
-					switch arrayType.Elt.(type) {
-					case *ast.Ident: //Array is a regular type e.g. []int
-						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("[]%s", arrayType.Elt)
-					case *ast.SelectorExpr: //Arrray is a custom type e.g. []io.Writer
-						selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
-						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("[]%s.%s", selectorExpr.X, selectorExpr.Sel)
-					case *ast.StarExpr:
-						starExpr := arrayType.Elt.(*ast.StarExpr)
-						switch starExpr.X.(type) {
-						case *ast.Ident: // Array is a pointer of builtin types or local custom types
-							structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("[]*%s", starExpr.X)
-						case *ast.ArrayType:
-							arrayType := starExpr.X.(*ast.ArrayType)
-							switch arrayType.Elt.(type) {
-							default: //Catch and log any unhandled cases which can then be added in
-								fmt.Printf("Uncaught type in parsing slice pointer slice ([]*[]) field: %T\n", starExpr.X)
-							}
-						default: //Catch and log any unhandled cases which can then be added in
-							fmt.Printf("Uncaught type in parsing slice pointer field: %T\n", starExpr.X)
-						}
-					case *ast.ArrayType:
-						arrayType := arrayType.Elt.(*ast.ArrayType)
-						switch arrayType.Elt.(type) {
-						default: //Catch and log any unhandled cases which can then be added in
-							fmt.Printf("Uncaught type in parsing 2d slice: %T\n", arrayType.Elt)
-						}
-					default: //Catch and log any unhandled cases which can then be added in
-						fmt.Printf("Uncaught type in parsing slice struct field: %T\n", arrayType.Elt)
-					}
-				case *ast.MapType: //Field is a map
-					mapType := field.Type.(*ast.MapType)
-					var key, value string
-					//Determine the string value of the key type
-					switch mapType.Key.(type) {
-					case *ast.Ident: //Key type is a regular type e.g. int
-						key = fmt.Sprint(mapType.Key)
-					case *ast.SelectorExpr: //Keytype is a custom type e.g. io.Writer
-						selectorExpr := mapType.Key.(*ast.SelectorExpr)
-						key = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-					default: //Catch and log any unhandled cases to add in later
-						fmt.Printf("Uncaught type in parsing struct field map key: %T\n", mapType.Key)
-					}
-					//Determine the string value of the value type
-					switch mapType.Value.(type) {
-					case *ast.Ident: //Value type is a regular type e.g. int
-						value = fmt.Sprint(mapType.Value)
-					case *ast.SelectorExpr: //Valye type is a custom type e.g. io.Writer
-						selectorExpr := mapType.Value.(*ast.SelectorExpr)
-						value = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-					case *ast.StarExpr: //Value type is a pointer
-						starExpr := mapType.Value.(*ast.StarExpr)
-						switch starExpr.X.(type) {
-						case *ast.Ident: //Map value pointer type is to a builtin type or a local custom type
-
-						default: //Catch and log any unhandled cases to add in later
-							fmt.Printf("Uncaught type in parsing map pointer value type struct field: %T\n", starExpr.X)
-						}
-					default: //Catch and llog any unhandled cases to add in later
-						fmt.Printf("Uncaught type in parsing struct field map value: %T\n", mapType.Value)
-					}
-					structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("map[%s]%s", key, value)
-				case *ast.StarExpr: //Field is a pointer e.g. *int
-					starExpr := field.Type.(*ast.StarExpr)
-					switch starExpr.X.(type) {
-					case *ast.Ident: //Pointer is a builtin type or local custom type
-						ident := starExpr.X.(*ast.Ident)
-						parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "*")
-					case *ast.SelectorExpr: //Pointer is a custom type
-						selectorExpr := starExpr.X.(*ast.SelectorExpr)
-						parseSelectorExpr(field.Names, selectorExpr, structRecord.Fields, cv.packageName, "*")
-					case *ast.StarExpr: //Pointer is to another pointer
-						starExpr := starExpr.X.(*ast.StarExpr)
-						switch starExpr.X.(type) {
-						case *ast.Ident: //Pointer pointer is a builtin type or local custom type
-							ident := starExpr.X.(*ast.Ident)
-							parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "**")
-						default: //Catch and log any unhandled cases to add in later
-							fmt.Printf("Uncaught type when parsing pointer to pointer struct field: %T\n", starExpr.X)
-						}
-					case *ast.ArrayType: //Pointer is to an array e.g. *[]
-						arrayType := starExpr.X.(*ast.ArrayType)
-						switch arrayType.Elt.(type) {
-						case *ast.StarExpr: //Pointer array is to a pointer e.g. *[]*
-							starExpr := arrayType.Elt.(*ast.StarExpr)
-							switch starExpr.X.(type) {
-							case *ast.Ident: //Pointer array of pointers is builtin types or local custom type
-								ident := starExpr.X.(*ast.Ident)
-								parseIdent(field.Names, ident, structRecord.Fields, cv.packageName, "*[]*")
-							default: //Catch and log any unhandled cases to add in later
-								fmt.Printf("Uncaught type when parsing pointer to array of pointers struct field: %T\n", starExpr.X)
-							}
-						default: //Catch and log any unhandled cases to add in later
-							fmt.Printf("Uncaught type when parsing pointer to array struct field: %T\n", arrayType.Elt)
-						}
-					default: //Catch and log any unhandled cases to add in later
-						fmt.Printf("Uncaught type when parsing pointer struct field: %T\n", starExpr.X)
-					}
-				case *ast.FuncType: //Field is function type
-					funcType := field.Type.(*ast.FuncType)
-					params := parseFieldList(funcType.Params.List)
-					var returnValues []string
-					if funcType.Results != nil {
-						returnValues = parseFieldList(funcType.Results.List)
-					}
-					paramsString := strings.Join(params, ", ")
-					returnValuesString := strings.Join(returnValues, ", ")
-					if strings.Contains(returnValuesString, ",") {
-						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("func(%s) (%s)", paramsString, returnValuesString)
-					} else {
-						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("func(%s) %s", paramsString, returnValuesString)
-					}
-				case *ast.ChanType: //Field is a channel
-					chanType := field.Type.(*ast.ChanType)
-					switch chanType.Value.(type) {
-					case *ast.StructType: //Channel sends or receives a struct
-						structType := chanType.Value.(*ast.StructType)
-						if len(structType.Fields.List) == 0 {
-							structRecord.Fields[field.Names[0].Name] = fmt.Sprint("chan struct{}")
-						}
-					case *ast.Ident: //Channel of builtin types
-						structRecord.Fields[field.Names[0].Name] = fmt.Sprintf("%s", chanType.Value)
-					default: //Catch and log any uncaught cases to add in
-						fmt.Printf("Uncaught type in parsing chan type: %T\n", chanType.Value)
-					}
-				case *ast.InterfaceType: //Field is an interface
-					interfaceType := field.Type.(*ast.InterfaceType)
-					if len(interfaceType.Methods.List) == 0 {
-						structRecord.Fields[field.Names[0].Name] = "interface{}"
-					} else {
-						fmt.Printf("Non empty interface in struct field in type: %s\n", structRecord.Name)
-					}
-				default: //Catch and log any unhandled cases to add in later
-					fmt.Printf("Uncaught type in struct field parsing: %T\n", field.Type)
-				}
+	case *ast.TypeSpec:
+		typeSpec := node.(*ast.TypeSpec)
+		switch typeSpec.Type.(type) {
+		case *ast.StructType:
+			if !util.StartsWithUppercase(typeSpec.Name.String()) {
+				return cv
 			}
+			structRecord := model.ConcreteTypeRecord{}
+			structRecord.Package = cv.packageName
+			structRecord.Name = typeSpec.Name.String()
+			structRecord.BaseType = "struct"
+			structRecord.Methods = []model.MethodRecord{}
+			structRecord.ID = -1
+			cv.types = append(cv.types, structRecord)
+		case *ast.Ident:
+			structRecord := model.ConcreteTypeRecord{}
+			structRecord.Package = cv.packageName
+			structRecord.Name = typeSpec.Name.String()
+			structRecord.BaseType = fmt.Sprint(typeSpec.Type)
+			structRecord.Methods = []model.MethodRecord{}
+			structRecord.ID = -1
+			cv.types = append(cv.types, structRecord)
 		}
-		cv.types = append(cv.types, structRecord)
 	}
 	if node != nil {
 		cv.prevToken = node
 	}
 	return cv
-}
-
-func parseIdent(fieldNames []*ast.Ident, fieldType *ast.Ident, typeMap map[string]string, packageName string, typeModifier string) {
-	if len(fieldNames) == 0 { //Embedded local custom type
-		typeMap[fmt.Sprintf("%s%s.%s", typeModifier, packageName, fieldType)] = "embedded"
-	} else {
-		typeMap[fieldNames[0].Name] = fmt.Sprintf("%s%s", typeModifier, fieldType)
-	}
-}
-
-func parseSelectorExpr(fieldNames []*ast.Ident, fieldType *ast.SelectorExpr, typeMap map[string]string, packageName string, typeModifier string) {
-	if len(fieldNames) == 0 { //Embedded type
-		typeMap[fmt.Sprintf("%s%s.%s", typeModifier, fieldType.X, fieldType.Sel)] = "embedded"
-	} else {
-		typeMap[fieldNames[0].Name] = fmt.Sprintf("%s%s.%s", typeModifier, fieldType.X, fieldType.Sel)
-	}
 }

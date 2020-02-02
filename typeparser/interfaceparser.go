@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/util"
 )
 
 // ExtractInterfaces takes a filename and parses the file to extract all the interfaces out.
@@ -48,7 +49,7 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 		iface := node.(*ast.InterfaceType)
 		for _, method := range iface.Methods.List {
 			// If the method is unexported, then don't add it to the interface and also make the interface as un-implementable
-			if len(method.Names) != 0 && method.Names[0].Name[0] >= 97 && method.Names[0].Name[0] <= 122 {
+			if len(method.Names) != 0 && !util.StartsWithUppercase(method.Names[0].Name) {
 				record.Implementable = false
 				continue
 			}
@@ -58,7 +59,7 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 				switch method.Type.(type) {
 				case *ast.Ident: //Embedded interface is within the same package
 					ident := method.Type.(*ast.Ident)
-					if ident.Name[0] >= 97 && ident.Name[0] <= 122 {
+					if !util.StartsWithUppercase(ident.Name) {
 						record.Implementable = false
 						continue
 					}
@@ -114,6 +115,7 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 func parseFieldList(fields []*ast.Field) []string {
 	parameters := []string{}
 
+	//TODO: implement parsing for recognizing nameless parameters e.g. (a, b, c int)
 	for _, f := range fields {
 		switch f.Type.(type) {
 		case *ast.Ident: //Regular identifier e.g. string

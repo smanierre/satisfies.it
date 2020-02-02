@@ -1023,6 +1023,28 @@ func TestMiscellaneousInterfaceCases(t *testing.T) {
 					ID:            -1,
 				},
 			},
+		}, {
+			Name:     "Extracting nameless parameters e.g. (a, b, c int)",
+			Filepath: "../../testFiles/namelessParams.go",
+			Expected: []model.InterfaceRecord{
+				{
+					Package: "test",
+					Name:    "NamelessParams",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"int", "int", "int"},
+							ReturnValues: []string{},
+							ReceiverName: "",
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					Implementable: true,
+					ID:            -1,
+				},
+			},
 		},
 	}
 	for _, tt := range tc {
