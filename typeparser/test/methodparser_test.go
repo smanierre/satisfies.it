@@ -114,6 +114,10 @@ func TestMethodExtraction(t *testing.T) {
 					ID:           -1,
 				},
 			},
+		}, {
+			Name:     "Unexported  methods",
+			Filepath: "../../testFiles/unexportedMethods.go",
+			Expected: []model.MethodRecord{},
 		},
 	}
 

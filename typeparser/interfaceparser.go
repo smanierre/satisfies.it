@@ -112,24 +112,25 @@ func (iv *interfaceVisitor) Visit(node ast.Node) ast.Visitor {
 	return iv
 }
 
+//TODO: Refactor this to work recursively and just do one thinf for each type, exiting on an ident or selectorExpr
 func parseFieldList(fields []*ast.Field) []string {
 	parameters := []string{}
 
-	//TODO: implement parsing for recognizing nameless parameters e.g. (a, b, c int)
 	for _, f := range fields {
+		repeat := len(f.Names)
 		switch f.Type.(type) {
 		case *ast.Ident: //Regular identifier e.g. string
 			param := f.Type.(*ast.Ident)
-			parameters = append(parameters, param.String())
+			appendMultiple(param.String(), repeat, &parameters)
 		case *ast.SelectorExpr: //Custom type e.g. io.Writer
 			selectorExpr := f.Type.(*ast.SelectorExpr)
-			parameters = append(parameters, fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel))
+			appendMultiple(fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 		case *ast.StarExpr: //Pointer e.g. *int
 			starExpr := f.Type.(*ast.StarExpr)
 			switch starExpr.X.(type) {
 			case *ast.SelectorExpr: //pointer type is a custom type e.g. io.Writer
 				selectorExpr := starExpr.X.(*ast.SelectorExpr)
-				parameters = append(parameters, fmt.Sprintf("*%s.%s", selectorExpr.X, selectorExpr.Sel))
+				appendMultiple(fmt.Sprintf("*%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 			case *ast.ArrayType: //pointer type is a slice or array e.g. *[]
 				arrayType := starExpr.X.(*ast.ArrayType)
 				switch arrayType.Elt.(type) {
@@ -137,23 +138,23 @@ func parseFieldList(fields []*ast.Field) []string {
 					starExpr := arrayType.Elt.(*ast.StarExpr)
 					switch starExpr.X.(type) {
 					case *ast.Ident: // Pointer type is builtin e.g. *[]*int
-						parameters = append(parameters, fmt.Sprintf("*[]*%s", starExpr.X))
+						appendMultiple(fmt.Sprintf("*[]*%s", starExpr.X), repeat, &parameters)
 					case *ast.SelectorExpr: // Pointer type is a custom type e.g. *[]*io.Writer
 						selectorExpr := starExpr.X.(*ast.SelectorExpr)
-						parameters = append(parameters, fmt.Sprintf("*[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+						appendMultiple(fmt.Sprintf("*[]*%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 					default: //Catch and log any uncaught cases to add in
 						fmt.Printf("Uncaught type in parsing type of *[]* method parameter: %T\n", starExpr.X)
 					}
 				case *ast.SelectorExpr: // pointer is to a slice of custom types e.g. *[]io.Writer
 					selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
-					parameters = append(parameters, fmt.Sprintf("*[]%s.%s", selectorExpr.X, selectorExpr.Sel))
+					appendMultiple(fmt.Sprintf("*[]%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 				case *ast.Ident: // pointer is to a slice of builtin types e.g. *[]int
-					parameters = append(parameters, fmt.Sprintf("*[]%s", arrayType.Elt))
+					appendMultiple(fmt.Sprintf("*[]%s", arrayType.Elt), repeat, &parameters)
 				default: //Catch and log any uncaught cases to add in
 					fmt.Printf("Uncaught type in parsing type of pointer slice(*[]) method parameter: %T\n", arrayType.Elt)
 				}
 			case *ast.Ident: //pointer type is a builtin type e.g. *int
-				parameters = append(parameters, fmt.Sprintf("*%s", starExpr.X))
+				appendMultiple(fmt.Sprintf("*%s", starExpr.X), repeat, &parameters)
 			default: //Catch and log any uncaught cases to add in
 				fmt.Printf("Uncaught type in parsing type of pointer method parameter: %T\n", starExpr.X)
 			}
@@ -164,34 +165,34 @@ func parseFieldList(fields []*ast.Field) []string {
 				starExpr := arrayType.Elt.(*ast.StarExpr)
 				switch starExpr.X.(type) {
 				case *ast.Ident: //Array of builtin pointers e.g. *int
-					parameters = append(parameters, fmt.Sprintf("[]*%s", starExpr.X))
+					appendMultiple(fmt.Sprintf("[]*%s", starExpr.X), repeat, &parameters)
 				case *ast.SelectorExpr: //Array of custom type pointers e.g. *io.Writer
 					selectorExpr := starExpr.X.(*ast.SelectorExpr)
-					parameters = append(parameters, fmt.Sprintf("[]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+					appendMultiple(fmt.Sprintf("[]*%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 				default: //Catch and log any uncaught cases to add in
 					fmt.Printf("Uncaught type in parsing type of slice of pointers([]*) parameter: %T\n", starExpr.X)
 				}
 			case *ast.SelectorExpr: //Array of custom types e.g. io.Writer
 				selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
-				parameters = append(parameters, fmt.Sprintf("[]%s.%s", selectorExpr.X, selectorExpr.Sel))
+				appendMultiple(fmt.Sprintf("[]%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 			case *ast.Ident: //Array of builting types e.g. int
-				parameters = append(parameters, fmt.Sprintf("[]%s", arrayType.Elt))
+				appendMultiple(fmt.Sprintf("[]%s", arrayType.Elt), repeat, &parameters)
 			case *ast.ArrayType: //Array of Arrays e.g. [][]
 				arrayType := arrayType.Elt.(*ast.ArrayType)
 				switch arrayType.Elt.(type) {
 				case *ast.Ident: //Array of builtin types e.g. [][]int
-					parameters = append(parameters, fmt.Sprintf("[][]%s", arrayType.Elt))
+					appendMultiple(fmt.Sprintf("[][]%s", arrayType.Elt), repeat, &parameters)
 				case *ast.SelectorExpr: //Array of custom types e.g. [][]io.Writer
 					selectorExpr := arrayType.Elt.(*ast.SelectorExpr)
-					parameters = append(parameters, fmt.Sprintf("[][]%s.%s", selectorExpr.X, selectorExpr.Sel))
+					appendMultiple(fmt.Sprintf("[][]%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 				case *ast.StarExpr: //Array of pointers e.g. [][]*
 					starExpr := arrayType.Elt.(*ast.StarExpr)
 					switch starExpr.X.(type) {
 					case *ast.SelectorExpr: //Array of pointers to custom types e.g. [][]*io.Writer
 						selectorExpr := starExpr.X.(*ast.SelectorExpr)
-						parameters = append(parameters, fmt.Sprintf("[][]*%s.%s", selectorExpr.X, selectorExpr.Sel))
+						appendMultiple(fmt.Sprintf("[][]*%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 					case *ast.Ident: //Array of pointers to builtin types e.g. [][]*int
-						parameters = append(parameters, fmt.Sprintf("[][]*%s", starExpr.X))
+						appendMultiple(fmt.Sprintf("[][]*%s", starExpr.X), repeat, &parameters)
 					default: //Catch and log any uncaught cases to add in
 						fmt.Printf("Uncaught type in parsing type of 2d map of pointers([][]*) parameter: %T\n", starExpr.X)
 					}
@@ -204,7 +205,7 @@ func parseFieldList(fields []*ast.Field) []string {
 		case *ast.InterfaceType: //Interface parameter, right now only empty interfaces are supported e.g. interface{}
 			interfaceType := f.Type.(*ast.InterfaceType)
 			if len(interfaceType.Methods.List) == 0 { // only going to handle empty interfaces for now. If you aren't requiring an empty interface, don't be lazy and just define it...
-				parameters = append(parameters, fmt.Sprintf("interface{}"))
+				appendMultiple("interface{}", repeat, &parameters)
 			} else {
 				fmt.Println("Detected non empty interface parameter, ignoring.")
 			}
@@ -212,14 +213,14 @@ func parseFieldList(fields []*ast.Field) []string {
 			ellipsis := f.Type.(*ast.Ellipsis)
 			switch ellipsis.Elt.(type) {
 			case *ast.Ident: //Variadic parameter is a builtin type e.g. ...int
-				parameters = append(parameters, fmt.Sprintf("...%s", ellipsis.Elt))
+				appendMultiple(fmt.Sprintf("...%s", ellipsis.Elt), repeat, &parameters)
 			case *ast.SelectorExpr: //Variadic parameter is a custom type e.g. ...io.Writer
 				selectorExpr := ellipsis.Elt.(*ast.SelectorExpr)
-				parameters = append(parameters, fmt.Sprintf("...%s.%s", selectorExpr.X, selectorExpr.Sel))
+				appendMultiple(fmt.Sprintf("...%s.%s", selectorExpr.X, selectorExpr.Sel), repeat, &parameters)
 			case *ast.InterfaceType: //Variatic parameter is of type interface e.g. ...interface{}
 				interfaceType := ellipsis.Elt.(*ast.InterfaceType)
 				if len(interfaceType.Methods.List) == 0 {
-					parameters = append(parameters, fmt.Sprintf("...interface{}"))
+					appendMultiple("...interface{}", repeat, &parameters)
 				} else {
 					fmt.Println("Detected non empty interface parameter, ignoring.")
 				}
@@ -260,7 +261,7 @@ func parseFieldList(fields []*ast.Field) []string {
 			default: //Catch and llog any unhandled cases to add in later
 				fmt.Printf("Uncaught type in parsing method parameter map value: %T\n", mapType.Value)
 			}
-			parameters = append(parameters, fmt.Sprintf("map[%s]%s", key, value))
+			appendMultiple(fmt.Sprintf("map[%s]%s", key, value), repeat, &parameters)
 		case *ast.FuncType: //Paramater is a function
 			funcType := f.Type.(*ast.FuncType)
 			params := parseFieldList(funcType.Params.List)
@@ -271,9 +272,9 @@ func parseFieldList(fields []*ast.Field) []string {
 			paramsString := strings.Join(params, ", ")
 			returnValuesString := strings.Join(returnValues, ", ")
 			if strings.Contains(returnValuesString, ",") {
-				parameters = append(parameters, fmt.Sprintf("func(%s) (%s)", paramsString, returnValuesString))
+				appendMultiple(fmt.Sprintf("func(%s) (%s)", paramsString, returnValuesString), repeat, &parameters)
 			} else {
-				parameters = append(parameters, fmt.Sprintf("func(%s) %s", paramsString, returnValuesString))
+				appendMultiple(fmt.Sprintf("func(%s) %s", paramsString, returnValuesString), repeat, &parameters)
 			}
 		case *ast.ChanType: //Parameter is a channel
 			chanType := f.Type.(*ast.ChanType)
@@ -281,10 +282,10 @@ func parseFieldList(fields []*ast.Field) []string {
 			case *ast.StructType: //Channel sends or receives a struct
 				structType := chanType.Value.(*ast.StructType)
 				if len(structType.Fields.List) == 0 {
-					parameters = append(parameters, fmt.Sprint("chan struct{}"))
+					appendMultiple(fmt.Sprint("chan struct{}"), repeat, &parameters)
 				}
 			case *ast.Ident: //Channel of builtin types
-				parameters = append(parameters, fmt.Sprintf("%s", chanType.Value))
+				appendMultiple(fmt.Sprintf("%s", chanType.Value), repeat, &parameters)
 			default: //Catch and log any uncaught cases to add in
 				fmt.Printf("Uncaught type in parsing chan type: %T\n", chanType.Value)
 			}
@@ -293,4 +294,14 @@ func parseFieldList(fields []*ast.Field) []string {
 		}
 	}
 	return parameters
+}
+
+func appendMultiple(s string, n int, params *[]string) {
+	if n == 1 || n == 0 { //The 0 is to handle the return values in function parameters that are nameless
+		*params = append(*params, s)
+		return
+	}
+	for i := 0; i < n; i++ {
+		*params = append(*params, s)
+	}
 }

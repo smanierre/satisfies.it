@@ -7,6 +7,7 @@ import (
 	"go/token"
 
 	"github.com/smanierre/typer-site/model"
+	"github.com/smanierre/typer-site/util"
 )
 
 type methodVisitor struct {
@@ -35,6 +36,9 @@ func (mv *methodVisitor) Visit(node ast.Node) ast.Visitor {
 	case *ast.FuncDecl:
 		funcDecl := node.(*ast.FuncDecl)
 		if funcDecl.Recv == nil { //No receiver means it's just a regular fuction and not a method
+			return mv
+		}
+		if !util.StartsWithUppercase(funcDecl.Name.Name) { //Unexported method
 			return mv
 		}
 		methodRecord := model.MethodRecord{}
