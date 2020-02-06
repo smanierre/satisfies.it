@@ -115,20 +115,25 @@ func TestMethodExtraction(t *testing.T) {
 				},
 			},
 		}, {
-			Name:     "Unexported  methods",
+			Name:     "Unexported methods",
 			Filepath: "../../testFiles/unexportedMethods.go",
+			Expected: []model.MethodRecord{},
+		}, {
+			Name:     "Exported method on unexported type",
+			Filepath: "../../testFiles/exportedMethodUnexportedType.go",
 			Expected: []model.MethodRecord{},
 		},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractMethods(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, results)
+			if !reflect.DeepEqual(p.Methods, tt.Expected) {
+				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, p.Methods)
 			}
 		})
 	}

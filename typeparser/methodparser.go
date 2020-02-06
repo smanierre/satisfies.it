@@ -3,8 +3,6 @@ package typeparser
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
 
 	"github.com/smanierre/typer-site/model"
 	"github.com/smanierre/typer-site/util"
@@ -13,19 +11,6 @@ import (
 type methodVisitor struct {
 	methods     []model.MethodRecord
 	packageName string
-}
-
-//ExtractMethods takes a filepath of a .go file and parses it to extract all the methods
-func ExtractMethods(filename string) ([]model.MethodRecord, error) {
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, nil, parser.AllErrors)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse file: %s", err.Error())
-	}
-	visitor := &methodVisitor{}
-	visitor.methods = []model.MethodRecord{}
-	ast.Walk(visitor, f)
-	return visitor.methods, nil
 }
 
 func (mv *methodVisitor) Visit(node ast.Node) ast.Visitor {
@@ -39,6 +24,16 @@ func (mv *methodVisitor) Visit(node ast.Node) ast.Visitor {
 			return mv
 		}
 		if !util.StartsWithUppercase(funcDecl.Name.Name) { //Unexported method
+			return mv
+		}
+		//Check to see if the method is on an unexported type. If so, ignore it.
+		var recvname string
+		starExpr, ok := funcDecl.Recv.List[0].Type.(*ast.StarExpr)
+		recvname = fmt.Sprint(funcDecl.Recv.List[0].Type)
+		if ok {
+			recvname = fmt.Sprint(starExpr.X)
+		}
+		if !util.StartsWithUppercase(recvname) {
 			return mv
 		}
 		methodRecord := model.MethodRecord{}

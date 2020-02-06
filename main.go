@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/smanierre/typer-site/model"
 	"github.com/smanierre/typer-site/typeparser"
 )
 
@@ -19,32 +17,34 @@ func main() {
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
-	// interfaces := []model.InterfaceRecord{}
-	structs := []model.ConcreteTypeRecord{}
-
+	p := typeparser.NewParser()
+	// p.ParseFile("/usr/lib/go/src/vendor/golang.org/x/crypto/cryptobyte/string.go")
+	// if err != nil {
+	// 	fmt.Printf("%s\n", err.Error())
+	// 	os.Exit(1)
+	// }
 	walkFunc := func(path string, info os.FileInfo, err error) error {
-		// fmt.Println("Parsing file: " + path)
 		if !strings.Contains(path, "_test.go") && path[len(path)-3:] == ".go" {
 			file, err := os.Open(path)
 			defer file.Close()
 			if err != nil {
 				return fmt.Errorf("unable to open file %v", err)
 			}
-			et, err := typeparser.ExtractConcreteTypes(path)
+			// fmt.Printf("Parsing file: %s\n", path)
+			err = p.ParseFile(path)
 			if err != nil {
 				fmt.Printf("error parsing file %s with error %v", path, err)
 				return nil
 			}
-			structs = append(structs, et...)
-			// interfaces = append(interfaces, extractedInterfaces...)
 		}
 		return nil
 	}
 	filepath.Walk("/usr/lib/go/src", walkFunc)
-	json, err := json.MarshalIndent(structs, "", "\t")
-	if err != nil {
-		log.Fatalf("unable to format json %v", err)
-	}
-	outFile.Truncate(0)
-	outFile.Write(json)
+	// p.ResolveMethods()
+	// json, err := json.MarshalIndent(structs, "", "\t")
+	// if err != nil {
+	// 	log.Fatalf("unable to format json %v", err)
+	// }
+	// outFile.Truncate(0)
+	// outFile.Write(json)
 }

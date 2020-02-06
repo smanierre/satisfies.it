@@ -514,12 +514,13 @@ func TestExtractedInterfaceParameters(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractInterfaces(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("got: %+v wanted: %+v\n", results, tt.Expected)
+			if !reflect.DeepEqual(p.Interfaces, tt.Expected) {
+				t.Errorf("got: %+v wanted: %+v\n", p.Interfaces, tt.Expected)
 			}
 		})
 	}
@@ -915,12 +916,13 @@ func TestExtractedInterfaceReturnValues(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractInterfaces(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("got: %+v wanted: %+v\n", results, tt.Expected)
+			if !reflect.DeepEqual(p.Interfaces, tt.Expected) {
+				t.Errorf("got: %+v wanted: %+v\n", p.Interfaces, tt.Expected)
 			}
 		})
 	}
@@ -1049,12 +1051,13 @@ func TestMiscellaneousInterfaceCases(t *testing.T) {
 	}
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractInterfaces(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("got: %+v wanted: %+v\n", results, tt.Expected)
+			if !reflect.DeepEqual(p.Interfaces, tt.Expected) {
+				t.Errorf("got: %+v wanted: %+v\n", p.Interfaces, tt.Expected)
 			}
 		})
 	}

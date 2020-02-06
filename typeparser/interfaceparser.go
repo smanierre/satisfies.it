@@ -3,25 +3,11 @@ package typeparser
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
 	"strings"
 
 	"github.com/smanierre/typer-site/model"
 	"github.com/smanierre/typer-site/util"
 )
-
-// ExtractInterfaces takes a filename and parses the file to extract all the interfaces out.
-func ExtractInterfaces(filename string) ([]model.InterfaceRecord, error) {
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, nil, parser.AllErrors)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse file: %s", err.Error())
-	}
-	visitor := &interfaceVisitor{}
-	ast.Walk(visitor, f)
-	return visitor.interfaces, nil
-}
 
 type interfaceVisitor struct {
 	interfaces  []model.InterfaceRecord
@@ -194,7 +180,15 @@ func parseFieldList(fields []*ast.Field) []string {
 					case *ast.Ident: //Array of pointers to builtin types e.g. [][]*int
 						appendMultiple(fmt.Sprintf("[][]*%s", starExpr.X), repeat, &parameters)
 					default: //Catch and log any uncaught cases to add in
-						fmt.Printf("Uncaught type in parsing type of 2d map of pointers([][]*) parameter: %T\n", starExpr.X)
+						fmt.Printf("Uncaught type in parsing type of 2d slice of pointers([][]*) parameter: %T\n", starExpr.X)
+					}
+				case *ast.ArrayType:
+					arrayType := arrayType.Elt.(*ast.ArrayType)
+					switch arrayType.Elt.(type) {
+					case *ast.Ident:
+						appendMultiple(fmt.Sprintf("[][][]%s", arrayType.Elt), repeat, &parameters)
+					default:
+						fmt.Printf("Uncaught type in parsing type of 3d slice ([][][]) parameter: %T\n", arrayType.Elt)
 					}
 				default: //Catch and log any uncaught cases to add in
 					fmt.Printf("Uncaught type in parsing type of 2d slice ([][]) parameter: %T\n", arrayType.Elt)
@@ -224,6 +218,47 @@ func parseFieldList(fields []*ast.Field) []string {
 				} else {
 					fmt.Println("Detected non empty interface parameter, ignoring.")
 				}
+			case *ast.MapType:
+				mapType := ellipsis.Elt.(*ast.MapType)
+				var key, value string
+				//Determine the string value of the key type
+				switch mapType.Key.(type) {
+				case *ast.Ident: //Key type is a regular type e.g. int
+					key = fmt.Sprint(mapType.Key)
+				case *ast.SelectorExpr: //Keytype is a custom type e.g. io.Writer
+					selectorExpr := mapType.Key.(*ast.SelectorExpr)
+					key = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
+				default: //Catch and log any unhandled cases to add in later
+					fmt.Printf("Uncaught type in parsing variadic method parameter map key: %T\n", mapType.Key)
+				}
+				//Determine the string value of the value type
+				switch mapType.Value.(type) {
+				case *ast.Ident: //Value type is a regular type e.g. int
+					value = fmt.Sprint(mapType.Value)
+				case *ast.SelectorExpr: //Value type is a custom type e.g. io.Writer
+					selectorExpr := mapType.Value.(*ast.SelectorExpr)
+					value = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
+				case *ast.StarExpr: //Value type is a pointer e.g. *int
+					starExpr := mapType.Value.(*ast.StarExpr)
+					switch starExpr.X.(type) {
+					case *ast.SelectorExpr: //Map value type is a pointer to a custom type e.g. *io.Writer
+						selectorExpr := starExpr.X.(*ast.SelectorExpr)
+						value = fmt.Sprintf("*%s.%s", selectorExpr.X, selectorExpr.Sel)
+					case *ast.Ident: //Map value type is a pointer to a builtin type e.g. *int
+						value = fmt.Sprintf("*%s", starExpr.X)
+					default: //Catch and log any uncaught cases to add in
+						fmt.Printf("Uncaught type in parsing variadic type of map parameter pointer value: %T\n", starExpr.X)
+					}
+				case *ast.InterfaceType:
+					// Assuming interface is empty, if not then ignoring
+					interfaceType := mapType.Value.(*ast.InterfaceType)
+					if len(interfaceType.Methods.List) == 0 {
+						value = "interface{}"
+					}
+				default: //Catch and llog any unhandled cases to add in later
+					fmt.Printf("Uncaught type in parsing variadic method parameter map value: %T\n", mapType.Value)
+				}
+				appendMultiple(fmt.Sprintf("...map[%s]%s", key, value), repeat, &parameters)
 			default:
 				fmt.Printf("Uncaught type in parsing variadic parameter: %T\n", ellipsis.Elt)
 			}
@@ -245,7 +280,7 @@ func parseFieldList(fields []*ast.Field) []string {
 			case *ast.Ident: //Value type is a regular type e.g. int
 				value = fmt.Sprint(mapType.Value)
 			case *ast.SelectorExpr: //Value type is a custom type e.g. io.Writer
-				selectorExpr := mapType.Key.(*ast.SelectorExpr)
+				selectorExpr := mapType.Value.(*ast.SelectorExpr)
 				value = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
 			case *ast.StarExpr: //Value type is a pointer e.g. *int
 				starExpr := mapType.Value.(*ast.StarExpr)

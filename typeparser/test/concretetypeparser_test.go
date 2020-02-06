@@ -53,12 +53,13 @@ func TestStructExtraction(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractConcreteTypes(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, results)
+			if !reflect.DeepEqual(p.ConcreteTypes, tt.Expected) {
+				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, p.ConcreteTypes)
 			}
 		})
 	}
@@ -102,15 +103,16 @@ func TestCustomTypeExtraction(t *testing.T) {
 			},
 		},
 	}
-
+	//TODO: Add tests for more of the concrete types that were missing beforehand
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			results, err := typeparser.ExtractConcreteTypes(tt.Filepath)
+			p := typeparser.NewParser()
+			err := p.ParseFile(tt.Filepath)
 			if err != nil {
 				t.Errorf("%s\n", err.Error())
 			}
-			if !reflect.DeepEqual(results, tt.Expected) {
-				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, results)
+			if !reflect.DeepEqual(p.ConcreteTypes, tt.Expected) {
+				t.Errorf("Expected: %+v got: %+v\n", tt.Expected, p.ConcreteTypes)
 			}
 		})
 	}
