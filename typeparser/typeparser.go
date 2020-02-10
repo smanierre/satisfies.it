@@ -33,15 +33,11 @@ func (p *Parser) ParseFile(filepath string) error {
 	if err != nil {
 		return fmt.Errorf("unable to parse file: %s", err.Error())
 	}
-	iv := &interfaceVisitor{}
-	cv := &concreteTypeVisitor{}
-	mv := &methodVisitor{}
-	ast.Walk(iv, file)
-	p.Interfaces = append(p.Interfaces, iv.interfaces...)
-	ast.Walk(cv, file)
-	p.ConcreteTypes = append(p.ConcreteTypes, cv.types...)
-	ast.Walk(mv, file)
-	p.Methods = append(p.Methods, mv.methods...)
+	tv := &typeVisitor{}
+	ast.Walk(tv, file)
+	p.Interfaces = append(p.Interfaces, tv.interfaces...)
+	p.ConcreteTypes = append(p.ConcreteTypes, tv.concreteTypes...)
+	p.Methods = append(p.Methods, tv.methods...)
 	return nil
 }
 
@@ -56,7 +52,6 @@ func (p *Parser) ResolveMethods() {
 			if m.Package == t.Package {
 				//check if it is a pointer receiver and if so, dont include the '*'
 				if (m.ReceiverName[0] == '*' && m.ReceiverName[1:] == t.Name) || m.ReceiverName == t.Name {
-					// fmt.Printf("Resolving method %s onto type %s.%s\n", m.Name, t.Package, t.Name)
 					p.ConcreteTypes[ti].Methods = append(p.ConcreteTypes[ti].Methods, m)
 					resolved = true
 					break

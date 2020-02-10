@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,11 +11,11 @@ import (
 
 func main() {
 
-	outFile, err := os.OpenFile("interfaces.json", os.O_CREATE|os.O_RDWR, 0666)
-	defer outFile.Close()
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
+	// outFile, err := os.OpenFile("interfaces.json", os.O_CREATE|os.O_RDWR, 0666)
+	// defer outFile.Close()
+	// if err != nil {
+	// 	log.Fatalf("error opening file: %v", err)
+	// }
 	p := typeparser.NewParser()
 	// p.ParseFile("/usr/lib/go/src/vendor/golang.org/x/crypto/cryptobyte/string.go")
 	// if err != nil {
@@ -39,7 +38,8 @@ func main() {
 		}
 		return nil
 	}
-	filepath.Walk("/usr/lib/go/src", walkFunc)
+	// filepath.Walk("/usr/lib/go/src", walkFunc)
+	filepath.Walk("/home/sean/Projects/typer-site/testFiles/", walkFunc)
 	// p.ResolveMethods()
 	// json, err := json.MarshalIndent(structs, "", "\t")
 	// if err != nil {

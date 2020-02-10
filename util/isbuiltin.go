@@ -20,6 +20,7 @@ var builtinTypes = []string{
 	"float64",
 	"complex64",
 	"complex128",
+	"error",
 }
 
 //IsBuiltinType takes a type name string and returns a boolean indicating whether or not it is a builtin Go type
