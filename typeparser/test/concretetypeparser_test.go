@@ -101,6 +101,31 @@ func TestCustomTypeExtraction(t *testing.T) {
 					ID:       -1,
 				},
 			},
+		}, {
+			Name:     "Extracting multiple complex custom types",
+			Filepath: "../../testFiles/multipleComplexCustomTypes.go",
+			Expected: []model.ConcreteTypeRecord{
+				{
+					Package:  "test",
+					Name:     "TypeOne",
+					BaseType: "map[string]func(int) (error, *io.Writer)",
+					Methods:  []model.MethodRecord{},
+					ID:       -1,
+				},
+				{
+					Package:  "test",
+					Name:     "TypeTwo",
+					BaseType: "*io.ReadWriter",
+					Methods:  []model.MethodRecord{},
+					ID:       -1,
+				}, {
+					Package:  "test",
+					Name:     "TypeThree",
+					BaseType: "func(interface{})",
+					Methods:  []model.MethodRecord{},
+					ID:       -1,
+				},
+			},
 		},
 	}
 	//TODO: Add tests for more of the concrete types that were missing beforehand

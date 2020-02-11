@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,17 +13,17 @@ import (
 
 func main() {
 
-	// outFile, err := os.OpenFile("interfaces.json", os.O_CREATE|os.O_RDWR, 0666)
-	// defer outFile.Close()
-	// if err != nil {
-	// 	log.Fatalf("error opening file: %v", err)
-	// }
+	typeFile, err := os.OpenFile("types.json", os.O_CREATE|os.O_RDWR, 0666)
+	defer typeFile.Close()
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	interfaceFile, err := os.OpenFile("interfaces.json", os.O_CREATE|os.O_RDWR, 0666)
+	defer interfaceFile.Close()
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
 	p := typeparser.NewParser()
-	// p.ParseFile("/usr/lib/go/src/vendor/golang.org/x/crypto/cryptobyte/string.go")
-	// if err != nil {
-	// 	fmt.Printf("%s\n", err.Error())
-	// 	os.Exit(1)
-	// }
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if !strings.Contains(path, "_test.go") && path[len(path)-3:] == ".go" {
 			file, err := os.Open(path)
@@ -29,7 +31,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("unable to open file %v", err)
 			}
-			// fmt.Printf("Parsing file: %s\n", path)
+			fmt.Printf("Parsing file: %s\n", path)
 			err = p.ParseFile(path)
 			if err != nil {
 				fmt.Printf("error parsing file %s with error %v", path, err)
@@ -38,13 +40,18 @@ func main() {
 		}
 		return nil
 	}
-	// filepath.Walk("/usr/lib/go/src", walkFunc)
-	filepath.Walk("/home/sean/Projects/typer-site/testFiles/", walkFunc)
-	// p.ResolveMethods()
-	// json, err := json.MarshalIndent(structs, "", "\t")
-	// if err != nil {
-	// 	log.Fatalf("unable to format json %v", err)
-	// }
-	// outFile.Truncate(0)
-	// outFile.Write(json)
+	filepath.Walk("/usr/lib/go/src", walkFunc)
+	p.ResolveMethods()
+	typeJson, err := json.MarshalIndent(p.ConcreteTypes, "", "\t")
+	if err != nil {
+		log.Fatalf("unable to format json %v", err)
+	}
+	interfaceJson, err := json.MarshalIndent(p.Interfaces, "", "\t")
+	if err != nil {
+		log.Fatalf("unable to format json %v", err)
+	}
+	typeFile.Truncate(0)
+	typeFile.Write(typeJson)
+	interfaceFile.Truncate(0)
+	interfaceFile.Write(interfaceJson)
 }

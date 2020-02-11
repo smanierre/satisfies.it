@@ -58,6 +58,62 @@ func TestResolveMethods(t *testing.T) {
 					ID: -1,
 				},
 			},
+		}, {
+			Name:     "Multiple methods on multiple receivers",
+			FilePath: "../../testFiles/resolveMultipleMethods.go",
+			Expected: []model.ConcreteTypeRecord{
+				{
+					Package:  "test",
+					Name:     "TypeOne",
+					BaseType: "int",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodOne",
+							Parameters:   []string{"string", "*int"},
+							ReturnValues: []string{},
+							ReceiverName: "TypeOne",
+							ReceiverID:   -1,
+							ID:           -1,
+						}, {
+							Package:      "test",
+							Name:         "MethodTwo",
+							Parameters:   []string{},
+							ReturnValues: []string{"int", "error"},
+							ReceiverName: "TypeOne",
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					ID: -1,
+				},
+				{
+					Package:  "test",
+					Name:     "TypeTwo",
+					BaseType: "struct",
+					Methods: []model.MethodRecord{
+						{
+							Package:      "test",
+							Name:         "MethodTwoOne",
+							Parameters:   []string{},
+							ReturnValues: []string{},
+							ReceiverName: "TypeTwo",
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+						{
+							Package:      "test",
+							Name:         "MethodTwoTwo",
+							Parameters:   []string{"[]string", "map[string]int"},
+							ReturnValues: []string{"int"},
+							ReceiverName: "*TypeTwo",
+							ReceiverID:   -1,
+							ID:           -1,
+						},
+					},
+					ID: -1,
+				},
+			},
 		},
 	}
 

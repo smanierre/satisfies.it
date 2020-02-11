@@ -248,7 +248,8 @@ func (a *astBuilder) parseAst(node ast.Node) {
 		} else {
 			returnString = ""
 		}
-		a.astString += fmt.Sprintf("func(%s) %s", paramsString, returnString)
+		//Trim space to get rid of trailing space if there are no return values
+		a.astString += strings.TrimSpace(fmt.Sprintf("func(%s) %s", paramsString, returnString))
 	case *ast.MapType:
 		mapType := node.(*ast.MapType)
 		keyString := astBuilder{packageName: a.packageName}
@@ -267,6 +268,11 @@ func (a *astBuilder) parseAst(node ast.Node) {
 		if len(structType.Fields.List) == 0 {
 			a.astString += "struct{}"
 		}
+	case *ast.ParenExpr:
+		parenExpr := node.(*ast.ParenExpr)
+		a.astString += "("
+		a.parseAst(parenExpr.X)
+		a.astString += ")"
 	default:
 		fmt.Printf("Uncaught type when parsing node: %T\n", node)
 	}
