@@ -33,6 +33,9 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 		if !ok { // This is an interface that is a parameter to a method
 			return tv
 		}
+		if !util.StartsWithUppercase(previousIdent.String()) { //Interface is unexported, ignore it
+			return tv
+		}
 		record.Name = previousIdent.String()
 		record.Implementable = true
 		iface := node.(*ast.InterfaceType)

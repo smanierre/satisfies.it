@@ -1047,6 +1047,10 @@ func TestMiscellaneousInterfaceCases(t *testing.T) {
 					ID:            -1,
 				},
 			},
+		}, {
+			Name:     "Ignoring unexported interfaces",
+			Filepath: "../../testFiles/unexportedInterface.go",
+			Expected: []model.InterfaceRecord{},
 		},
 	}
 	for _, tt := range tc {

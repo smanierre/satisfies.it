@@ -1,41 +1,39 @@
 package store
 
 import (
-	"bytes"
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/smanierre/typer-site/model"
 	db "github.com/smanierre/typer-site/store/postgres"
-	"github.com/smanierre/typer-site/store/types"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
-	GetInterfaces() []types.InterfaceRecord
-	GetInterface(id int) types.InterfaceRecord
-	GetTypes() []types.ConcreteTypeRecord
-	GetTypeByID(id int) types.ConcreteTypeRecord
-	GetTypesByName(name string) []types.ConcreteTypeRecord
+	GetInterfaces() []model.InterfaceRecord
+	GetInterfaceById(id int) model.InterfaceRecord
+	GetInterfaceByName(name string) model.InterfaceRecord
+	GetConcreteTypes() []model.ConcreteTypeRecord
+	GetConcreteTypeTypeByID(id int) model.ConcreteTypeRecord
+	GetConcreteTypesByName(name string) []model.ConcreteTypeRecord
 	GetImplementingIDs(id int) []int
 }
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
 type TypeStorePGImpl struct {
-	interfaces            []types.InterfaceRecord
-	concreteTypes         []types.ConcreteTypeRecord
-	methods               []types.MethodRecord
+	interfaces            []model.InterfaceRecord
+	concreteTypes         []model.ConcreteTypeRecord
+	methods               []model.MethodRecord
 	interfaceImplementers map[int][]int
 	lastUpdated           time.Time
 }
 
 // NewStore returns an initialized TypeStore with types already retrieved from the database.
 func NewStore() (TypeStore, error) {
-	t := TypeStorePGImpl{concreteTypes: []types.ConcreteTypeRecord{}, interfaces: []types.InterfaceRecord{}}
+	t := TypeStorePGImpl{concreteTypes: []model.ConcreteTypeRecord{}, interfaces: []model.InterfaceRecord{}, methods: []model.MethodRecord{}}
 	err := t.getAndParseTypes()
 	if err != nil {
 		log.Printf("Error: %s\n", err)
@@ -50,9 +48,9 @@ func NewStore() (TypeStore, error) {
 }
 
 // GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
-func (t *TypeStorePGImpl) GetInterfaces() []types.InterfaceRecord {
+func (t *TypeStorePGImpl) GetInterfaces() []model.InterfaceRecord {
 	t.updateStore()
-	var interfaces []types.ConcreteTypeRecord
+	var interfaces []model.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "interface" {
 			interfaces = append(interfaces, v)
@@ -62,20 +60,20 @@ func (t *TypeStorePGImpl) GetInterfaces() []types.InterfaceRecord {
 }
 
 // GetInterface returns a types.ConcreteTypeRecord matching the id if it exists and is an interface.
-func (t *TypeStorePGImpl) GetInterface(id int) types.ConcreteTypeRecord {
+func (t *TypeStorePGImpl) GetInterface(id int) model.ConcreteTypeRecord {
 	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType == "interface" && v.ID == id {
 			return v
 		}
 	}
-	return types.ConcreteTypeRecord{}
+	return model.ConcreteTypeRecord{}
 }
 
 // GetTypes returns a slice of TypeRecords containing all the structs in the store.
-func (t *TypeStorePGImpl) GetTypes() []types.ConcreteTypeRecord {
+func (t *TypeStorePGImpl) GetTypes() []model.ConcreteTypeRecord {
 	t.updateStore()
-	var types []types.ConcreteTypeRecord
+	var types []model.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType != "interface" {
 			types = append(types, v)
@@ -85,20 +83,20 @@ func (t *TypeStorePGImpl) GetTypes() []types.ConcreteTypeRecord {
 }
 
 // GetTypeByID returns a types.ConcreteTypeRecord matching the id if it exists and is a struct.
-func (t *TypeStorePGImpl) GetTypeByID(id int) types.ConcreteTypeRecord {
+func (t *TypeStorePGImpl) GetTypeByID(id int) model.ConcreteTypeRecord {
 	t.updateStore()
 	for _, v := range t.types {
 		if v.BaseType != "interface" && v.ID == id {
 			return v
 		}
 	}
-	return types.ConcreteTypeRecord{}
+	return model.ConcreteTypeRecord{}
 }
 
 //GetTypesByName returns a type with the given name as long as it isn't an interface
-func (t *TypeStorePGImpl) GetTypesByName(name string) []types.ConcreteTypeRecord {
+func (t *TypeStorePGImpl) GetTypesByName(name string) []model.ConcreteTypeRecord {
 	t.updateStore()
-	var types []types.ConcreteTypeRecord
+	var types []model.ConcreteTypeRecord
 	for _, v := range t.types {
 		if v.BaseType == "struct" && v.Name == name {
 			types = append(types, v)
@@ -133,28 +131,38 @@ func (t *TypeStorePGImpl) updateStore() {
 }
 
 func (t *TypeStorePGImpl) getAndParseTypes() error {
-	rows, err := db.GetAllTypes()
+	rows, err := db.GetAllConcreteTypes()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve types from database: %s", err)
 	}
 	defer rows.Close()
-	var typeList []types.ConcreteTypeRecord
-	var ty types.ConcreteTypeRecord
-	var s sql.NullString
+	var typeList []model.ConcreteTypeRecord
+	var ty model.ConcreteTypeRecord
 	for rows.Next() {
 		// If this isn'y here to reset t, the methods just keep on stacking up.
-		ty = types.ConcreteTypeRecord{}
-		if err := rows.Scan(&ty.ID, &ty.Package, &ty.Name, &ty.BaseType, &s); err != nil {
-			return fmt.Errorf("unable to parse row into types.ConcreteTypeRecord: %s", err)
-		}
-		if s.Valid {
-			b := bytes.NewBufferString(s.String)
-			decoder := json.NewDecoder(b)
-			decoder.Decode(&ty.Fields)
+		ty = model.ConcreteTypeRecord{}
+		if err := rows.Scan(&ty.ID, &ty.Package, &ty.Name, &ty.BaseType); err != nil {
+			return fmt.Errorf("unable to parse row into model.ConcreteTypeRecord: %s", err)
 		}
 		typeList = append(typeList, ty)
 	}
-	t.types = typeList
+	t.concreteTypes = typeList
+
+	rows, err = db.GetAllInterfaces()
+	if err != nil {
+		return fmt.Errorf("unabel to retrieve interfaces from database: %s", err)
+	}
+	defer rows.Close()
+	var interfaceList []model.InterfaceRecord
+	var in model.InterfaceRecord
+	for rows.Next() {
+		in = model.InterfaceRecord{}
+		if err = rows.Scan(&in.ID, &in.Package, &in.Name, &in.Implementable); err != nil {
+			return fmt.Errorf("unable to parse row into model.InterfaceRecord: %s", err)
+		}
+		interfaceList = append(interfaceList, in)
+	}
+	t.interfaces = interfaceList
 	return nil
 }
 
@@ -164,25 +172,18 @@ func (t *TypeStorePGImpl) getAndParseMethods() error {
 		return fmt.Errorf("unable to retrieve methods from database: %s", err)
 	}
 	defer rows.Close()
-	var methods []types.MethodRecord
-	var m types.MethodRecord
-	var typeIDHolder int
+	var methods []model.MethodRecord
+	var m model.MethodRecord
 	for rows.Next() {
-		if err := rows.Scan(&m.ID, &m.Package, &typeIDHolder, &m.Name, pq.Array(&m.Parameters), pq.Array(&m.ReturnValues)); err != nil {
+		if err := rows.Scan(&m.ID, &m.Package, &m.Name, pq.Array(&m.Parameters), pq.Array(&m.ReturnValues), &m.ReceiverName, &m.ReceiverID); err != nil {
 			return fmt.Errorf("unable to parse row into Method: %s", err)
-		}
-		m.ReceiverID = typeIDHolder
-		for _, v := range t.types {
-			if v.ID == typeIDHolder {
-				m.Receiver = fmt.Sprintf("%s.%s", v.Package, v.Name)
-			}
 		}
 		methods = append(methods, m)
 	}
-	for i, s := range t.types {
+	for i, s := range t.concreteTypes {
 		for _, m := range methods {
 			if m.ReceiverID == s.ID {
-				t.types[i].Methods = append(t.types[i].Methods, m)
+				t.concreteTypes[i].Methods = append(t.concreteTypes[i].Methods, m)
 			}
 		}
 	}
@@ -211,7 +212,7 @@ func (t *TypeStorePGImpl) resolveImplementations() {
 	t.interfaceImplementers = interfaceImplementers
 }
 
-func (iface types.ConcreteTypeRecord) checkIfImplements(typ types.ConcreteTypeRecord) bool {
+func (iface model.ConcreteTypeRecord) checkIfImplements(typ model.ConcreteTypeRecord) bool {
 	for _, m := range typ.Methods {
 		for i, im := range iface.Methods {
 			if m.Equals(im) {
@@ -226,7 +227,7 @@ func (iface types.ConcreteTypeRecord) checkIfImplements(typ types.ConcreteTypeRe
 }
 
 // Equals checks if the provided types.MethodRecord equals the one being called on. This method ignores ID and Package since those are irrelevant to interface implementation.
-func (m types.MethodRecord) Equals(record types.MethodRecord) bool {
+func (m model.MethodRecord) Equals(record model.MethodRecord) bool {
 	if m.Receiver != record.Receiver {
 		return false
 	}

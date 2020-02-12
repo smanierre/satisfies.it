@@ -1,28 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/joho/godotenv"
+	"github.com/smanierre/typer-site/store/postgres"
 	"github.com/smanierre/typer-site/typeparser"
 )
 
 func main() {
-
-	typeFile, err := os.OpenFile("types.json", os.O_CREATE|os.O_RDWR, 0666)
-	defer typeFile.Close()
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	interfaceFile, err := os.OpenFile("interfaces.json", os.O_CREATE|os.O_RDWR, 0666)
-	defer interfaceFile.Close()
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
 	p := typeparser.NewParser()
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if !strings.Contains(path, "_test.go") && path[len(path)-3:] == ".go" {
@@ -42,16 +31,22 @@ func main() {
 	}
 	filepath.Walk("/usr/lib/go/src", walkFunc)
 	p.ResolveMethods()
-	typeJson, err := json.MarshalIndent(p.ConcreteTypes, "", "\t")
-	if err != nil {
-		log.Fatalf("unable to format json %v", err)
+	godotenv.Load("./.env")
+	postgres.InitDB()
+	for i, c := range p.ConcreteTypes {
+		fmt.Printf("Inserting Type: %s.%s\n", c.Package, c.Name)
+		id := postgres.CreateConcreteType(c.Package, c.Name, c.BaseType)
+		p.ConcreteTypes[i].ID = id
+		for j, m := range c.Methods {
+			fmt.Printf("Inserting Method %s on type %s.%s\n", m.Name, c.Package, c.Name)
+			p.ConcreteTypes[i].Methods[j].ReceiverID = id
+			mid := postgres.CreateMethod(m.Package, m.Name, m.Parameters, m.ReturnValues, m.ReceiverName, id)
+			p.ConcreteTypes[i].Methods[j].ID = mid
+		}
 	}
-	interfaceJson, err := json.MarshalIndent(p.Interfaces, "", "\t")
-	if err != nil {
-		log.Fatalf("unable to format json %v", err)
+	for n, i := range p.Interfaces {
+		fmt.Printf("Inserting Interface: %s.%s\n", i.Package, i.Name)
+		id := postgres.CreateInterface(i.Package, i.Name, i.Implementable)
+		p.Interfaces[n].ID = id
 	}
-	typeFile.Truncate(0)
-	typeFile.Write(typeJson)
-	interfaceFile.Truncate(0)
-	interfaceFile.Write(interfaceJson)
 }
