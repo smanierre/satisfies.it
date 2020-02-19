@@ -1,6 +1,6 @@
 package util
 
-//StartsWithUpper takes a string and returns a boolean indicating whether or not it starts with an uppercase later.
+//StartsWithUppercase takes a string and returns a boolean indicating whether or not it starts with an uppercase later.
 func StartsWithUppercase(s string) bool {
 	if len(s) == 0 {
 		return false
