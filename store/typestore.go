@@ -3,21 +3,24 @@ package store
 import (
 	"fmt"
 	"log"
+	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/lib/pq"
 	"github.com/smanierre/typer-site/model"
 	db "github.com/smanierre/typer-site/store/postgres"
+	"github.com/smanierre/typer-site/util"
 )
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
 	GetInterfaces() []model.InterfaceRecord
-	GetInterfaceById(id int) model.InterfaceRecord
-	GetInterfaceByName(name string) model.InterfaceRecord
+	GetInterfaceByID(id int) model.InterfaceRecord
+	GetInterfacesByName(name string) []model.InterfaceRecord
 	GetConcreteTypes() []model.ConcreteTypeRecord
-	GetConcreteTypeTypeByID(id int) model.ConcreteTypeRecord
+	GetConcreteTypeByID(id int) model.ConcreteTypeRecord
 	GetConcreteTypesByName(name string) []model.ConcreteTypeRecord
 	GetImplementingIDs(id int) []int
 }
@@ -50,59 +53,70 @@ func NewStore() (TypeStore, error) {
 // GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
 func (t *TypeStorePGImpl) GetInterfaces() []model.InterfaceRecord {
 	t.updateStore()
-	var interfaces []model.ConcreteTypeRecord
-	for _, v := range t.types {
-		if v.BaseType == "interface" {
+	return t.interfaces
+}
+
+// GetInterfaceByID returns a types.ConcreteTypeRecord matching the id if it exists and is an interface.
+func (t *TypeStorePGImpl) GetInterfaceByID(id int) model.InterfaceRecord {
+	t.updateStore()
+	for _, v := range t.interfaces {
+		if v.ID == id {
+			return v
+		}
+	}
+	return model.InterfaceRecord{}
+}
+
+//GetInterfacesByName returns a list of interfaces with the given name. Note, don't include the package in the name e.g. Writer, not io.Writer
+func (t *TypeStorePGImpl) GetInterfacesByName(name string) []model.InterfaceRecord {
+	t.updateStore()
+	var interfaces []model.InterfaceRecord
+	for _, v := range t.interfaces {
+		if v.Name == name {
 			interfaces = append(interfaces, v)
 		}
 	}
 	return interfaces
 }
 
-// GetInterface returns a types.ConcreteTypeRecord matching the id if it exists and is an interface.
-func (t *TypeStorePGImpl) GetInterface(id int) model.ConcreteTypeRecord {
+// GetConcreteTypes returns a slice of TypeRecords containing all the structs in the store.
+func (t *TypeStorePGImpl) GetConcreteTypes() []model.ConcreteTypeRecord {
 	t.updateStore()
-	for _, v := range t.types {
-		if v.BaseType == "interface" && v.ID == id {
-			return v
-		}
-	}
-	return model.ConcreteTypeRecord{}
-}
-
-// GetTypes returns a slice of TypeRecords containing all the structs in the store.
-func (t *TypeStorePGImpl) GetTypes() []model.ConcreteTypeRecord {
-	t.updateStore()
-	var types []model.ConcreteTypeRecord
-	for _, v := range t.types {
-		if v.BaseType != "interface" {
-			types = append(types, v)
-		}
-	}
-	return types
+	return t.concreteTypes
 }
 
 // GetTypeByID returns a types.ConcreteTypeRecord matching the id if it exists and is a struct.
 func (t *TypeStorePGImpl) GetTypeByID(id int) model.ConcreteTypeRecord {
 	t.updateStore()
-	for _, v := range t.types {
-		if v.BaseType != "interface" && v.ID == id {
+	for _, v := range t.concreteTypes {
+		if v.ID == id {
 			return v
 		}
 	}
 	return model.ConcreteTypeRecord{}
 }
 
-//GetTypesByName returns a type with the given name as long as it isn't an interface
-func (t *TypeStorePGImpl) GetTypesByName(name string) []model.ConcreteTypeRecord {
+//GetConcreteTypesByName returns a type with the given name as long as it isn't an interface
+func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) []model.ConcreteTypeRecord {
 	t.updateStore()
 	var types []model.ConcreteTypeRecord
-	for _, v := range t.types {
-		if v.BaseType == "struct" && v.Name == name {
+	for _, v := range t.concreteTypes {
+		if v.Name == name {
 			types = append(types, v)
 		}
 	}
 	return types
+}
+
+//GetConcreteTypeByID returns the given concrete type for the id or an empty typerecord if it doesn't exist
+func (t *TypeStorePGImpl) GetConcreteTypeByID(id int) model.ConcreteTypeRecord {
+	t.updateStore()
+	for _, ct := range t.concreteTypes {
+		if ct.ID == id {
+			return ct
+		}
+	}
+	return model.ConcreteTypeRecord{}
 }
 
 //GetImplementingIDs returns the id of each type that implements the given interface
@@ -115,18 +129,25 @@ func (t *TypeStorePGImpl) GetImplementingIDs(id int) []int {
 }
 
 func (t *TypeStorePGImpl) updateStore() {
-	if t.lastUpdated.Sub(time.Now()) < time.Second*-30 {
+	rate, err := strconv.Atoi(os.Getenv("DATABASE_REFRESH_RATE"))
+	if err != nil {
+		fmt.Println("unable to read database refresh rate from environment, defaulting to 9999 seconds")
+		rate = 9999
+	}
+	rateDuration := time.Duration(rate)
+	if t.lastUpdated.Sub(time.Now()) < time.Second*-rateDuration {
 		log.Println("Updating TypeStore from database")
 		err := t.getAndParseTypes()
 		if err != nil {
-			log.Printf("Error: %s\n", err)
+			log.Printf("Error updating store: %s\n", err)
 		}
 		err = t.getAndParseMethods()
 		if err != nil {
-			log.Printf("Error: %s\n", err)
+			log.Printf("Error updating store: %s\n", err)
 		} else {
 			t.lastUpdated = time.Now()
 		}
+		t.resolveImplementations()
 	}
 }
 
@@ -167,77 +188,91 @@ func (t *TypeStorePGImpl) getAndParseTypes() error {
 }
 
 func (t *TypeStorePGImpl) getAndParseMethods() error {
-	rows, err := db.GetAllMethods()
+	rows, err := db.GetAllConcreteMethods()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve methods from database: %s", err)
+		return fmt.Errorf("unable to retrieve concrete methods from database: %s", err.Error())
 	}
 	defer rows.Close()
 	var methods []model.MethodRecord
 	var m model.MethodRecord
 	for rows.Next() {
 		if err := rows.Scan(&m.ID, &m.Package, &m.Name, pq.Array(&m.Parameters), pq.Array(&m.ReturnValues), &m.ReceiverName, &m.ReceiverID); err != nil {
-			return fmt.Errorf("unable to parse row into Method: %s", err)
+			return fmt.Errorf("unable to parse concrete method row into Method: %s", err.Error())
 		}
 		methods = append(methods, m)
 	}
-	for i, s := range t.concreteTypes {
+	for i, ct := range t.concreteTypes {
 		for _, m := range methods {
-			if m.ReceiverID == s.ID {
+			if m.ReceiverID == ct.ID {
 				t.concreteTypes[i].Methods = append(t.concreteTypes[i].Methods, m)
+			}
+		}
+	}
+	rows, err = db.GetAllInterfaceMethods()
+	if err != nil {
+		return fmt.Errorf("unable to retreive interface methods from database: %s", err.Error())
+	}
+	defer rows.Close()
+	methods = []model.MethodRecord{}
+	m = model.MethodRecord{}
+	for rows.Next() {
+		if err = rows.Scan(&m.ID, &m.Package, &m.Name, pq.Array(&m.Parameters), pq.Array(&m.ReturnValues), &m.ReceiverName, &m.ReceiverID); err != nil {
+			return fmt.Errorf("unable to parse interface method row into MethodRecord: %s", err.Error())
+		}
+		methods = append(methods, m)
+	}
+	for i, iface := range t.interfaces {
+		for _, m := range methods {
+			if m.ReceiverID == iface.ID {
+				t.interfaces[i].Methods = append(t.interfaces[i].Methods, m)
 			}
 		}
 	}
 	return nil
 }
 
-// TODO: Get this to work so that every type doesn't implement every interface. Also get methods on interfaces to work right.
 func (t *TypeStorePGImpl) resolveImplementations() {
-	interfaces := t.GetInterfaces()
-	structs := t.GetTypes()
-
 	interfaceImplementers := map[int][]int{}
-
-	for _, i := range interfaces {
-		for _, s := range structs {
+	implementingIds := []int{}
+	for _, i := range t.interfaces {
+		for _, ct := range t.concreteTypes {
 			// check if type s satisfies interface i
-			if i.checkIfImplements(s) {
-				_, ok := interfaceImplementers[i.ID]
-				if !ok {
-					interfaceImplementers[i.ID] = []int{s.ID}
+			if doesImplement(i, ct) {
+				if !util.Contains(implementingIds, ct.ID) {
+					implementingIds = append(implementingIds, ct.ID)
 				}
-				interfaceImplementers[i.ID] = append(interfaceImplementers[i.ID], s.ID)
 			}
 		}
+		interfaceImplementers[i.ID] = implementingIds
+		implementingIds = []int{}
 	}
 	t.interfaceImplementers = interfaceImplementers
 }
 
-func (iface model.ConcreteTypeRecord) checkIfImplements(typ model.ConcreteTypeRecord) bool {
-	for _, m := range typ.Methods {
-		for i, im := range iface.Methods {
-			if m.Equals(im) {
-				iface.Methods = append(iface.Methods[:i], iface.Methods[i+1:]...)
+func doesImplement(iface model.InterfaceRecord, ct model.ConcreteTypeRecord) bool {
+	matchingMethods := 0
+	for _, m := range ct.Methods {
+		for _, im := range iface.Methods {
+			if isEqual(im, m) {
+				matchingMethods++
 			}
 		}
 	}
-	if len(iface.Methods) == 0 {
+	if len(iface.Methods) == matchingMethods {
 		return true
 	}
 	return false
 }
 
 // Equals checks if the provided types.MethodRecord equals the one being called on. This method ignores ID and Package since those are irrelevant to interface implementation.
-func (m model.MethodRecord) Equals(record model.MethodRecord) bool {
-	if m.Receiver != record.Receiver {
+func isEqual(m1, m2 model.MethodRecord) bool {
+	if m1.Name != m2.Name {
 		return false
 	}
-	if m.Name != record.Name {
+	if !reflect.DeepEqual(m1.Parameters, m2.Parameters) {
 		return false
 	}
-	if !reflect.DeepEqual(m.Parameters, record.Parameters) {
-		return false
-	}
-	if !reflect.DeepEqual(m.ReturnValues, record.ReturnValues) {
+	if !reflect.DeepEqual(m1.ReturnValues, m2.ReturnValues) {
 		return false
 	}
 	return true

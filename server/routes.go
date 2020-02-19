@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/smanierre/typer-site/store/types"
+	"github.com/smanierre/typer-site/model"
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){
@@ -37,16 +37,27 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
 	id, err := strconv.Atoi(interfaceQuery)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		//Going to assume they are searching by name
+		getInterfacesByName(w, r)
 	}
 	w.Header().Set("content-type", "application/json")
-	i := typeStore.GetInterface(id)
+	i := typeStore.GetInterfaceByID(id)
 	if i.Package == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	json.NewEncoder(w).Encode(i)
+}
+
+func getInterfacesByName(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
+	interfaces := typeStore.GetInterfacesByName(interfaceQuery)
+	if len(interfaces) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(interfaces)
 }
 
 func getAllTypes(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +67,7 @@ func getAllTypes(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(typeStore.GetTypes())
+	json.NewEncoder(w).Encode(typeStore.GetConcreteTypes())
 }
 
 func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
@@ -72,8 +83,9 @@ func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
 		getTypesByName(w, r)
 	}
 	w.Header().Set("content-type", "application/json")
-	typ := typeStore.GetTypeByID(id)
+	typ := typeStore.GetConcreteTypeByID(id)
 	if typ.Package == "" {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	json.NewEncoder(w).Encode(typ)
@@ -82,7 +94,7 @@ func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
 func getTypesByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
-	types := typeStore.GetTypesByName(typeQuery)
+	types := typeStore.GetConcreteTypesByName(typeQuery)
 	if len(types) == 0 {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -101,10 +113,10 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	inter := typeStore.GetInterface(interfaceID)
-	var typeList []types.ConcreteTypeRecord
+	inter := typeStore.GetInterfaceByID(interfaceID)
+	typeList := []model.ConcreteTypeRecord{}
 	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
-		for _, t := range typeStore.GetTypes() {
+		for _, t := range typeStore.GetConcreteTypes() {
 			if t.ID == v {
 				typeList = append(typeList, t)
 				continue
@@ -112,8 +124,8 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	returnJSON := struct {
-		Interface    types.InterfaceRecord
-		Implementers []types.ConcreteTypeRecord
+		Interface    model.InterfaceRecord
+		Implementers []model.ConcreteTypeRecord
 	}{
 		Interface:    inter,
 		Implementers: typeList,

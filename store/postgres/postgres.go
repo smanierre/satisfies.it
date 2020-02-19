@@ -11,15 +11,18 @@ import (
 )
 
 const (
-	concreteTypeInsertQuery     = `INSERT INTO CONCRETE_TYPES(package, name, basetype) VALUES($1, $2, $3) RETURNING id;`
-	concreteTypeSelectAllQuery  = `SELECT * FROM CONCRETE_TYPES;`
-	concreteTypeSelectByIDQuery = `SELECT * FROM CONCRETE_TYPES WHERE id=$1;`
-	interfaceInsertQuery        = `INSERT INTO INTERFACES(package, name, implementable) VALUES($1, $2, $3) RETURNING id;`
-	interfaceSelectAllQuery     = `SELECT * FROM INTERFACES;`
-	interfaceSelectByIDQuery    = `SELECT * FROM INTERFACES WHERE id=$1;`
-	methodInsertQuery           = `INSERT INTO METHODS(package, name, parameters, return_values, receiver_name, receiver_ID) VALUES($1, $2, $3, $4, $5, $6) RETURNING id;`
-	methodSelectAllQuery        = `SELECT * FROM METHODS;`
-	methodSelectByIQuery        = `SELECT * FROM METHODS WHERE id=$1;`
+	concreteTypeInsertQuery       = `INSERT INTO CONCRETE_TYPES(package, name, basetype) VALUES($1, $2, $3) RETURNING id;`
+	concreteTypeSelectAllQuery    = `SELECT * FROM CONCRETE_TYPES;`
+	concreteTypeSelectByIDQuery   = `SELECT * FROM CONCRETE_TYPES WHERE id=$1;`
+	interfaceInsertQuery          = `INSERT INTO INTERFACES(package, name, implementable) VALUES($1, $2, $3) RETURNING id;`
+	interfaceSelectAllQuery       = `SELECT * FROM INTERFACES;`
+	interfaceSelectByIDQuery      = `SELECT * FROM INTERFACES WHERE id=$1;`
+	concreteMethodInsertQuery     = `INSERT INTO CONCRETE_METHODS(package, name, parameters, return_values, receiver_name, receiver_ID) VALUES($1, $2, $3, $4, $5, $6) RETURNING id;`
+	concreteMethodSelectAllQuery  = `SELECT * FROM CONCRETE_METHODS;`
+	concreteMethodSelectByIQuery  = `SELECT * FROM CONCRETE_METHODS WHERE id=$1;`
+	interfaceMethodInsertQuery    = `INSERT INTO INTERFACE_METHODS(package, name, parameters, return_values, receiver_name, receiver_ID) VALUES($1, $2, $3, $4, $5, $6) RETURNING id;`
+	interfaceMethodSelectAllQuery = `SELECT * FROM INTERFACE_METHODS;`
+	interfaceMethodSelectByIQuery = `SELECT * FROM INTERFACE_METHODS WHERE id=$1;`
 )
 
 var db *sql.DB
@@ -29,9 +32,12 @@ var selectTypeByIDStatement *sql.Stmt
 var createInterfaceStatement *sql.Stmt
 var selectAllInterfaceStatement *sql.Stmt
 var selectInterfaceByIDStatement *sql.Stmt
-var createMethodStatement *sql.Stmt
-var selectAllMethodStatement *sql.Stmt
-var selectMethodByIDStatement *sql.Stmt
+var createConcreteMethodStatement *sql.Stmt
+var selectAllConcreteMethodStatement *sql.Stmt
+var selectConcreteMethodByIDStatement *sql.Stmt
+var createInterfaceMethodStatement *sql.Stmt
+var selectAllInterfaceMethodStatement *sql.Stmt
+var selectInterfaceMethodByIDStatement *sql.Stmt
 
 // InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
@@ -69,15 +75,27 @@ func InitDB() {
 	if err != nil {
 		panic(err)
 	}
-	createMethodStatement, err = db.Prepare(methodInsertQuery)
+	createConcreteMethodStatement, err = db.Prepare(concreteMethodInsertQuery)
 	if err != nil {
 		panic(err)
 	}
-	selectAllMethodStatement, err = db.Prepare(methodSelectAllQuery)
+	selectAllConcreteMethodStatement, err = db.Prepare(concreteMethodSelectAllQuery)
 	if err != nil {
 		panic(err)
 	}
-	selectMethodByIDStatement, err = db.Prepare(methodSelectByIQuery)
+	selectConcreteMethodByIDStatement, err = db.Prepare(concreteMethodSelectByIQuery)
+	if err != nil {
+		panic(err)
+	}
+	createInterfaceMethodStatement, err = db.Prepare(interfaceMethodInsertQuery)
+	if err != nil {
+		panic(err)
+	}
+	selectAllInterfaceMethodStatement, err = db.Prepare(interfaceMethodSelectAllQuery)
+	if err != nil {
+		panic(err)
+	}
+	selectInterfaceMethodByIDStatement, err = db.Prepare(interfaceMethodSelectByIQuery)
 	if err != nil {
 		panic(err)
 	}
@@ -127,24 +145,46 @@ func GetInterfaceByID(id int) *sql.Row {
 	return selectInterfaceByIDStatement.QueryRow(id)
 }
 
-// CreateMethod takes the fields from a Method (sans ID) and inserts it into the database, returning an error if not successful.
-func CreateMethod(packageName string, name string, parameters []string, returnValues []string, receiverName string, receiverID int) int {
-	res := createMethodStatement.QueryRow(packageName, name, pq.Array(parameters), pq.Array(returnValues), receiverName, receiverID)
+// CreateConcreteMethod takes the fields from a Method (sans ID) and inserts it into the database, returning an error if not successful.
+func CreateConcreteMethod(packageName string, name string, parameters []string, returnValues []string, receiverName string, receiverID int) int {
+	res := createConcreteMethodStatement.QueryRow(packageName, name, pq.Array(parameters), pq.Array(returnValues), receiverName, receiverID)
 	var id int
 	res.Scan(&id)
 	return id
 }
 
-// GetAllMethods returns all the *sql.Rows of the method table in the database.
-func GetAllMethods() (*sql.Rows, error) {
-	rows, err := selectAllMethodStatement.Query()
+// GetAllConcreteMethods returns all the *sql.Rows of the method table in the database.
+func GetAllConcreteMethods() (*sql.Rows, error) {
+	rows, err := selectAllConcreteMethodStatement.Query()
 	if err != nil {
 		return nil, fmt.Errorf("unable to execute query: %s", err)
 	}
 	return rows, nil
 }
 
-// GetMethodByID returns a *sql.Row with the given ID.
-func GetMethodByID(id int) *sql.Row {
-	return selectMethodByIDStatement.QueryRow(id)
+// GetConcreteMethodByID returns a *sql.Row with the given ID.
+func GetConcreteMethodByID(id int) *sql.Row {
+	return selectConcreteMethodByIDStatement.QueryRow(id)
+}
+
+// CreateInterfaceMethod takes the fields from a Method (sans ID) and inserts it into the database, returning an error if not successful.
+func CreateInterfaceMethod(packageName string, name string, parameters []string, returnValues []string, receiverName string, receiverID int) int {
+	res := createInterfaceMethodStatement.QueryRow(packageName, name, pq.Array(parameters), pq.Array(returnValues), receiverName, receiverID)
+	var id int
+	res.Scan(&id)
+	return id
+}
+
+// GetAllInterfaceMethods returns all the *sql.Rows of the interface_method table in the database.
+func GetAllInterfaceMethods() (*sql.Rows, error) {
+	rows, err := selectAllInterfaceMethodStatement.Query()
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute query: %s", err)
+	}
+	return rows, nil
+}
+
+// GetInterfaceMethodByID returns a *sql.Row with the given ID.
+func GetInterfaceMethodByID(id int) *sql.Row {
+	return selectInterfaceMethodByIDStatement.QueryRow(id)
 }
