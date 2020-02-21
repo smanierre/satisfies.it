@@ -17,7 +17,7 @@ type Parser struct {
 	fs            *token.FileSet
 }
 
-//NewParser takes a list of visitors to use when parsing a file and returns a new Parser.
+//NewParser returns a new Parser.
 func NewParser() Parser {
 	return Parser{
 		Interfaces:    []model.InterfaceRecord{},

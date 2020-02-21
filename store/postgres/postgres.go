@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	// Driver for postgres
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
 const (
@@ -39,6 +39,13 @@ var createInterfaceMethodStatement *sql.Stmt
 var selectAllInterfaceMethodStatement *sql.Stmt
 var selectInterfaceMethodByIDStatement *sql.Stmt
 
+var tableStructureQueries map[string]string = map[string]string{
+	"concrete_types":    "CREATE TABLE IF NOT EXISTS CONCRETE_TYPES (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),BASETYPE VARCHAR (255));",
+	"concrete_methods":  "CREATE TABLE IF NOT EXISTS CONCRETE_METHODS (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),PARAMETERS VARCHAR (255)[],RETURN_VALUES VARCHAR (255)[],RECEIVER_NAME VARCHAR (255),RECEIVER_ID INTEGER REFERENCES CONCRETE_TYPES(ID) ON DELETE CASCADE);",
+	"interfaces":        "CREATE TABLE IF NOT EXISTS INTERFACES (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),IMPLEMENTABLE BOOLEAN);",
+	"interface_methods": "CREATE TABLE IF NOT EXISTS INTERFACE_METHODS (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),PARAMETERS VARCHAR (255)[],RETURN_VALUES VARCHAR (255)[],RECEIVER_NAME VARCHAR(255),RECEIVER_ID INTEGER REFERENCES INTERFACES(ID) ON DELETE CASCADE)",
+}
+
 // InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -47,10 +54,62 @@ func InitDB() {
 	if err != nil {
 		panic(err)
 	}
-	err = db.Ping()
-	if err != nil {
-		panic(err)
+	for i := 0; i < 5; i++ {
+		err = nil
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+		fmt.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
+		time.Sleep(time.Second * 3)
+		if i == 5 {
+			panic(err)
+		}
 	}
+	fmt.Println("Successfully connected to database")
+
+	fmt.Println("Checking for database structure")
+	expectedTables := map[string]bool{"concrete_types": false, "concrete_methods": false, "interfaces": false, "interface_methods": false}
+	tables, err := db.Query("SELECT table_name from information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
+	for tables.Next() {
+		var s string
+		if err := tables.Scan(&s); err != nil {
+			fmt.Println(err)
+		} else {
+			_, ok := expectedTables[s]
+			if ok {
+				expectedTables[s] = true
+			}
+		}
+	}
+
+	for table, found := range expectedTables {
+		if !found {
+			fmt.Println("Missing table " + table)
+			_, err := db.Exec(tableStructureQueries[table])
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("Created table " + table)
+			continue
+		}
+		fmt.Println("Found table " + table)
+	}
+
+	emptyTables := 0
+	for table := range expectedTables {
+		query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
+		row := db.QueryRow(query)
+		var n int
+		if err := row.Scan(&n); err != nil {
+			panic(err)
+		}
+		if n == 0 {
+			fmt.Println("No Data found in table: " + table)
+			emptyTables++
+		}
+	}
+
 	createTypeStatement, err = db.Prepare(concreteTypeInsertQuery)
 	if err != nil {
 		panic(err)

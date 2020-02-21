@@ -171,7 +171,7 @@ func (t *TypeStorePGImpl) getAndParseTypes() error {
 
 	rows, err = db.GetAllInterfaces()
 	if err != nil {
-		return fmt.Errorf("unabel to retrieve interfaces from database: %s", err)
+		return fmt.Errorf("unable to retrieve interfaces from database: %s", err)
 	}
 	defer rows.Close()
 	var interfaceList []model.InterfaceRecord
