@@ -2,3 +2,4 @@ localdev
 .vscode
 .env
 .pgdata
+Makefile

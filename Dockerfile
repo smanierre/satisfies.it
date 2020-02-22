@@ -14,14 +14,9 @@ RUN go test ./util
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
-FROM golang:1.13
+FROM alpine:latest
 
-# RUN apk --no-cache add ca-certificates
-
-RUN curl https://dl.google.com/go/go1.13.8.linux-amd64.tar.gz --output go.tar.gz
-RUN tar -xvf go.tar.gz
-RUN rm go.tar.gz
-
+RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
