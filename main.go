@@ -19,5 +19,5 @@ func main() {
 		log.Fatalf("unable to create store: %s", err.Error())
 	}
 	s := server.NewServer(store)
-	http.ListenAndServe(os.Getenv("LISTEN_PORT"), s.ServeMux)
+	log.Fatal(http.ListenAndServe(os.Getenv("LISTEN_PORT"), s.ServeMux))
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/smanierre/typer-site/typeparser"
 )
 
-func populateDatabase() {
+func PopulateDatabase() {
 
 	p := typeparser.NewParser()
 	walkFunc := func(path string, info os.FileInfo, err error) error {

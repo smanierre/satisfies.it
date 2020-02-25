@@ -131,7 +131,7 @@ func (t *TypeStorePGImpl) GetImplementingIDs(id int) []int {
 func (t *TypeStorePGImpl) updateStore() {
 	rate, err := strconv.Atoi(os.Getenv("DATABASE_REFRESH_RATE"))
 	if err != nil {
-		fmt.Println("unable to read database refresh rate from environment, defaulting to 9999 seconds")
+		log.Println("unable to read database refresh rate from environment, defaulting to 9999 seconds")
 		rate = 9999
 	}
 	rateDuration := time.Duration(rate)

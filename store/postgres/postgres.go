@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -60,21 +61,21 @@ func InitDB() {
 		if err == nil {
 			break
 		}
-		fmt.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
+		log.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
 		time.Sleep(time.Second * 3)
 		if i == 5 {
 			panic(err)
 		}
 	}
-	fmt.Println("Successfully connected to database")
+	log.Println("Successfully connected to database")
 
-	fmt.Println("Checking for database structure")
+	log.Println("Checking for database structure")
 	expectedTables := map[string]bool{"concrete_types": false, "concrete_methods": false, "interfaces": false, "interface_methods": false}
 	tables, err := db.Query("SELECT table_name from information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
 	for tables.Next() {
 		var s string
 		if err := tables.Scan(&s); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		} else {
 			_, ok := expectedTables[s]
 			if ok {
@@ -85,15 +86,15 @@ func InitDB() {
 
 	for table, found := range expectedTables {
 		if !found {
-			fmt.Println("Missing table " + table)
+			log.Println("Missing table " + table)
 			_, err := db.Exec(tableStructureQueries[table])
 			if err != nil {
 				panic(err)
 			}
-			fmt.Println("Created table " + table)
+			log.Println("Created table " + table)
 			continue
 		}
-		fmt.Println("Found table " + table)
+		log.Println("Found table " + table)
 	}
 
 	emptyTables := 0
@@ -105,7 +106,7 @@ func InitDB() {
 			panic(err)
 		}
 		if n == 0 {
-			fmt.Println("No Data found in table: " + table)
+			log.Println("No Data found in table: " + table)
 			emptyTables++
 		}
 	}
