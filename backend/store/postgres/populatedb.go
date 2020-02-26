@@ -29,7 +29,7 @@ func PopulateDatabase() {
 		}
 		return nil
 	}
-	filepath.Walk("/usr/lib/go/src", walkFunc)
+	filepath.Walk("/home/sean/Downloads/go/src", walkFunc)
 	p.ResolveMethods()
 	godotenv.Load("./.env")
 	InitDB()

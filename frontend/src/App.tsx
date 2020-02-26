@@ -1,9 +1,15 @@
 import * as React from "react"
-import { TextField } from "@material-ui/core"
+import GlobalStyle from "./GlobalStyle"
+import ContentContainer from "./ContentContainer"
+import Search from "./Search"
 
-const App: React.FC = () => {
-    const [text, setText] = React.useState("")
-    return <><p>{text}</p><TextField onChange={e => {setText(e.target.value)}}/></>
-}
+const App: React.FC = () => (
+    <>
+    <GlobalStyle />
+    <ContentContainer>
+        <Search />
+    </ContentContainer>
+    </>
+)
 
 export default App

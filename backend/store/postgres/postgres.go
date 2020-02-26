@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"time"
 
 	// Driver for postgres
@@ -40,18 +41,12 @@ var createInterfaceMethodStatement *sql.Stmt
 var selectAllInterfaceMethodStatement *sql.Stmt
 var selectInterfaceMethodByIDStatement *sql.Stmt
 
-var tableStructureQueries map[string]string = map[string]string{
-	"concrete_types":    "CREATE TABLE IF NOT EXISTS CONCRETE_TYPES (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),BASETYPE VARCHAR (255));",
-	"concrete_methods":  "CREATE TABLE IF NOT EXISTS CONCRETE_METHODS (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),PARAMETERS VARCHAR (255)[],RETURN_VALUES VARCHAR (255)[],RECEIVER_NAME VARCHAR (255),RECEIVER_ID INTEGER REFERENCES CONCRETE_TYPES(ID) ON DELETE CASCADE);",
-	"interfaces":        "CREATE TABLE IF NOT EXISTS INTERFACES (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),IMPLEMENTABLE BOOLEAN);",
-	"interface_methods": "CREATE TABLE IF NOT EXISTS INTERFACE_METHODS (ID serial PRIMARY KEY,PACKAGE VARCHAR (255),NAME VARCHAR (255),PARAMETERS VARCHAR (255)[],RETURN_VALUES VARCHAR (255)[],RECEIVER_NAME VARCHAR(255),RECEIVER_ID INTEGER REFERENCES INTERFACES(ID) ON DELETE CASCADE)",
-}
-
 // InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"))
-	db, err := sql.Open("postgres", psqlInfo)
+	var err error
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"))
+	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)
 	}
@@ -70,46 +65,32 @@ func InitDB() {
 	log.Println("Successfully connected to database")
 
 	log.Println("Checking for database structure")
-	expectedTables := map[string]bool{"concrete_types": false, "concrete_methods": false, "interfaces": false, "interface_methods": false}
-	tables, err := db.Query("SELECT table_name from information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
-	for tables.Next() {
-		var s string
-		if err := tables.Scan(&s); err != nil {
-			log.Println(err)
-		} else {
-			_, ok := expectedTables[s]
-			if ok {
-				expectedTables[s] = true
-			}
-		}
+	databases, err := db.Query("SELECT datname from pg_database where datistemplate=false;")
+	if err != nil {
+		panic(err)
 	}
-
-	for table, found := range expectedTables {
-		if !found {
-			log.Println("Missing table " + table)
-			_, err := db.Exec(tableStructureQueries[table])
-			if err != nil {
-				panic(err)
-			}
-			log.Println("Created table " + table)
-			continue
-		}
-		log.Println("Found table " + table)
+	checkDatabaseStructure(databases)
+	db.Close()
+	//TODO: How to use all the databases
+	psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=types_1_13_8 sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"))
+	db, err = sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
 	}
-
-	emptyTables := 0
-	for table := range expectedTables {
-		query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
-		row := db.QueryRow(query)
-		var n int
-		if err := row.Scan(&n); err != nil {
+	for i := 0; i < 5; i++ {
+		err = nil
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+		log.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
+		time.Sleep(time.Second * 3)
+		if i == 5 {
 			panic(err)
 		}
-		if n == 0 {
-			log.Println("No Data found in table: " + table)
-			emptyTables++
-		}
 	}
+	log.Println("Successfully connected to database")
 
 	createTypeStatement, err = db.Prepare(concreteTypeInsertQuery)
 	if err != nil {
@@ -247,4 +228,103 @@ func GetAllInterfaceMethods() (*sql.Rows, error) {
 // GetInterfaceMethodByID returns a *sql.Row with the given ID.
 func GetInterfaceMethodByID(id int) *sql.Row {
 	return selectInterfaceMethodByIDStatement.QueryRow(id)
+}
+
+func checkDatabaseStructure(rows *sql.Rows) {
+	expectedDatabases := map[string]bool{"types_1_9_7": false, "types_1_10_8": false, "types_1_11_13": false, "types_1_12_17": false, "types_1_13_8": false}
+	var tempDB *sql.DB
+	var err error
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			log.Println(err)
+		}
+		if _, ok := expectedDatabases[d]; ok {
+			log.Printf("Found database: %s\n", d)
+			expectedDatabases[d] = true
+			expectedTables := map[string]bool{"concrete_types": false, "concrete_methods": false, "interfaces": false, "interface_methods": false}
+			log.Printf("Connecting to database: %s\n", d)
+			tempDB, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+				os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), d))
+			if err != nil {
+				panic(err)
+			}
+			err = tempDB.Ping()
+			if err != nil {
+				panic(err)
+			}
+			log.Printf("Connected to database: %s\n", d)
+			tables, err := tempDB.Query("SELECT table_name from information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
+			if err != nil {
+				panic(err)
+			}
+			for tables.Next() {
+				var s string
+				if err := tables.Scan(&s); err != nil {
+					log.Println(err)
+				} else {
+					_, ok := expectedTables[s]
+					if ok {
+						expectedTables[s] = true
+					}
+				}
+			}
+			missingTables := 0
+			for table, found := range expectedTables {
+				if !found {
+					log.Println("Missing table " + table)
+					missingTables++
+					if err != nil {
+						panic(err)
+					}
+					continue
+				}
+				log.Println("Found table " + table)
+			}
+			if missingTables > 1 {
+				log.Println("Missing tables, repopulating database.")
+				for table := range expectedTables {
+					query := fmt.Sprintf("DROP TABLE %s CASCADE;", table)
+					tempDB.Exec(query)
+				}
+				fileFlag := fmt.Sprintf("./store/postgres/db_data/%s.sql", d)
+				databaseFlag := fmt.Sprintf("%s", d)
+				sqlCommand := exec.Command("psql", "-U", os.Getenv("DB_USER"), "-d", databaseFlag, "-f", fileFlag)
+				fmt.Println(sqlCommand.String())
+				err = sqlCommand.Run()
+				if err != nil {
+					log.Println(err)
+				}
+			}
+			tempDB.Close()
+		}
+	}
+	for database, exists := range expectedDatabases {
+		if !exists {
+			log.Printf("Missing database: %s, creating and populating\n", database)
+			createDBQuery := fmt.Sprintf("CREATE DATABASE %s;", database)
+			_, err := db.Query(createDBQuery)
+			if err != nil {
+				panic(err)
+			}
+			log.Printf("Connecting to database: %s\n", database)
+			tempDB, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+				os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), database))
+			if err != nil {
+				panic(err)
+			}
+			err = tempDB.Ping()
+			if err != nil {
+				panic(err)
+			}
+			log.Printf("Connected to database: %s\n", database)
+			fileFlag := fmt.Sprintf("./store/postgres/db_data/%s.sql", database)
+			populateDBCmd := exec.Command("psql", "-h", os.Getenv("DB_HOST"), "-p", os.Getenv("DB_PORT"), "-U", os.Getenv("DB_USER"), "-d", database, "-f", fileFlag)
+			err = populateDBCmd.Run()
+			if err != nil {
+				log.Println(err)
+			}
+			tempDB.Close()
+		}
+	}
 }
