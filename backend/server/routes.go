@@ -33,7 +33,6 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	log.Printf("Handling get request at %s from %s\n", r.URL.Path, r.RemoteAddr)
 	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
 	id, err := strconv.Atoi(interfaceQuery)

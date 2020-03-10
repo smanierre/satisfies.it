@@ -29,6 +29,13 @@ func (s Server) registerEndpoints() {
 	typeStore = s.TypeStore
 	for k, v := range endpoints {
 		log.Printf("Registering endpoint /api%s\n", k)
-		http.Handle("/api"+k, http.HandlerFunc(v))
+		http.Handle("/api"+k, allowCorsMiddleware(http.HandlerFunc(v)))
 	}
+}
+
+func allowCorsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		next.ServeHTTP(w, r)
+	})
 }

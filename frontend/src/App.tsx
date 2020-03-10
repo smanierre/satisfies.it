@@ -1,15 +1,7 @@
-import * as React from "react"
-import GlobalStyle from "./GlobalStyle"
-import ContentContainer from "./ContentContainer"
-import Search from "./Search"
+import React from "react"
 
-const App: React.FC = () => (
-    <>
-    <GlobalStyle />
-    <ContentContainer>
-        <Search />
-    </ContentContainer>
-    </>
-)
+const App: React.FC = () => {
+return <img src="./logo.svg" alt="Satisfies.it"/>
+}
 
 export default App

@@ -10,8 +10,8 @@ services:
             - data_volume:/var/lib/db
         expose: 
             - '5432'
-        ports:
-            - '5433:5432'
+        # restart:
+        #     - unless stopped
     web:
         build: .
         depends_on: 
@@ -20,5 +20,7 @@ services:
             - '4000:8080'
         environment:
             PGPASSWORD: ${DB_PASSWORD}
+        # restart:
+        #     "unless stopped"
 volumes:
     data_volume:
