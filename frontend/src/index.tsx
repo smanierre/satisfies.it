@@ -1,14 +1,14 @@
-import * as React from "react"
-import * as ReactDOM from "react-dom"
+import * as React from "react";
+import * as ReactDOM from "react-dom";
 
-import App from "./App"
-import GlobalStyles from "./GlobalStyles"
+import Landing from "./landing";
+import GlobalStyles from "./GlobalStyles";
 
-const Index:React.FC = () => (
-    <>
-        <GlobalStyles />
-        <App />
-    </>
-)
+const Index: React.FC = () => (
+  <>
+    <GlobalStyles />
+    <Landing />
+  </>
+);
 
-ReactDOM.render(<Index />, document.getElementById("root"))
+ReactDOM.render(<Index />, document.getElementById("root"));
