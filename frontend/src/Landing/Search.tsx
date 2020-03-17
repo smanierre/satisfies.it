@@ -1,3 +1,4 @@
+import React from "react";
 import styled from "styled-components";
 
 const StyledInput = styled.input`
@@ -13,4 +14,8 @@ const StyledInput = styled.input`
   font-size: 2.4rem;
 `;
 
-export default StyledInput;
+
+const Search: React.FC<{updateQuery: React.Dispatch<React.SetStateAction<string>>, placeholder: string}> = ({ updateQuery, placeholder }) => {
+  return <StyledInput placeholder={placeholder} onChange={e => {updateQuery(e.target.value)}} />
+}
+export default Search;

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
+import { useHistory } from "react-router-dom";
 
 import Search from "./Search";
 import Dropdown from "./Dropdown";
@@ -14,15 +15,19 @@ const Container = styled.form`
 `;
 
 const Landing: React.FC = () => {
+  const history = useHistory();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchType, setSearchType] = useState("interface");
   return (
     <Container
       onSubmit={e => {
         e.preventDefault();
+        history.push(`/results/${searchType}/${searchQuery}`);
       }}
     >
       <img src="./logo.svg" alt="Satisfies.it" />
-      <Search placeholder="Search" />
-      <Dropdown />
+      <Search placeholder="Search for..." updateQuery={setSearchQuery} />
+      <Dropdown setType={setSearchType} />
     </Container>
   );
 };

@@ -46,6 +46,7 @@ func InitDB() {
 	var err error
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"))
+	log.Printf("Connecting to database using following credentials:\n%s", psqlInfo)
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)

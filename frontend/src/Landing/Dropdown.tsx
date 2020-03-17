@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 
 const ContainerSpan = styled.span`
-  transform: translateY(-101%);
+  transform: translateY(-104%);
   width: 200px;
   border-bottom: 1px solid #01cedf;
   display: inline-block;
@@ -28,15 +28,18 @@ const ArrowSpan = styled.span`
   transition: all 0.3s;
 `;
 
-const Dropdown = () => (
+const Dropdown: React.FC<{
+  setType: React.Dispatch<React.SetStateAction<string>>;
+}> = ({ setType }) => (
   <ContainerSpan>
     <StyledDropdown
-      onChange={() => {
+      onChange={e => {
         document.querySelector("input")?.focus();
+        setType(e.target.value);
       }}
     >
-      <option value="implemented">Implemented By</option>
-      <option value="implements">Implements</option>
+      <option value="interface">Interfaces</option>
+      <option value="type">Concrete Types</option>
     </StyledDropdown>
     <ArrowSpan>&#9660;</ArrowSpan>
   </ContainerSpan>
