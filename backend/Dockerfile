@@ -22,6 +22,7 @@ WORKDIR /root/
 
 COPY --from=builder /app/main .
 COPY --from=builder /app/.env .
-COPY --from=builder /app/store/postgres/db_data ./store/postgres/db_data
+COPY --from=builder /app/store/postgres/dump.pgsql .
+COPY --from=builder /app/store/postgres/dbsetup.sql .
 
 CMD ["./main"]

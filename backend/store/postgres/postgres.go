@@ -1,11 +1,14 @@
 package postgres
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	// Driver for postgres
@@ -44,54 +47,59 @@ var selectInterfaceMethodByIDStatement *sql.Stmt
 // InitDB connects to the database and sets up the prepared statements needed. This must be called before making a store or interacting with the database.
 func InitDB() {
 	var err error
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
-		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"))
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"))
 	log.Printf("Connecting to database using following credentials:\n%s", psqlInfo)
 	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
 	for i := 0; i < 5; i++ {
 		err = nil
 		err = db.Ping()
 		if err == nil {
 			break
 		}
-		log.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
+		if err.Error() == "pq: database \"types\" does not exist" {
+			log.Println("Unable to connect to types database, attempting to create.")
+			tempdb, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
+				os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD")))
+			err = tempdb.Ping()
+			if err == nil {
+				_, err = tempdb.Exec("CREATE DATABASE types;")
+				if err != nil {
+					log.Println("Successfully created types database")
+				}
+			} else {
+				log.Fatal("Unable to connect to postgres database.")
+			}
+		}
 		time.Sleep(time.Second * 3)
 		if i == 5 {
+			log.Printf("Unable to connect to database: %s\n", err.Error())
 			panic(err)
 		}
 	}
-	log.Println("Successfully connected to database")
+	log.Println("***Successfully connected to database***")
 
-	log.Println("Checking for database structure")
-	databases, err := db.Query("SELECT datname from pg_database where datistemplate=false;")
+	log.Println("Reading db setup file.")
+	fileContents, err := ioutil.ReadFile("./store/postgres/dbsetup.sql")
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to read dbsetup file: %s\n", err.Error())
 	}
-	checkDatabaseStructure(databases)
-	db.Close()
-	//TODO: How to use all the databases
-	psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=types_1_13_8 sslmode=disable",
-		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"))
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-	for i := 0; i < 5; i++ {
-		err = nil
-		err = db.Ping()
-		if err == nil {
-			break
-		}
-		log.Printf("Unable to connect to database retrying in 3 seconds: %s\n", err.Error())
-		time.Sleep(time.Second * 3)
-		if i == 5 {
-			panic(err)
+	statements := strings.Split(string(fileContents), ";")
+	for _, statement := range statements {
+		log.Printf("Executing statement: %s\n", statement)
+		_, err = db.Exec(statement)
+		if err != nil {
+			log.Fatalf("Unable to execute query %s.\n%s\n", statement, err.Error())
 		}
 	}
-	log.Println("Successfully connected to database")
+	log.Println("Populating database")
+	cmd := exec.Command("psql", "-U", os.Getenv("DB_USER"), "-h", os.Getenv("DB_HOST"), "-d", os.Getenv("DB_NAME"), "-a", "-f", "./store/postgres/dump.pgsql")
+	stderr := bytes.Buffer{}
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(stderr.String())
+	}
 
 	createTypeStatement, err = db.Prepare(concreteTypeInsertQuery)
 	if err != nil {
@@ -229,103 +237,4 @@ func GetAllInterfaceMethods() (*sql.Rows, error) {
 // GetInterfaceMethodByID returns a *sql.Row with the given ID.
 func GetInterfaceMethodByID(id int) *sql.Row {
 	return selectInterfaceMethodByIDStatement.QueryRow(id)
-}
-
-func checkDatabaseStructure(rows *sql.Rows) {
-	expectedDatabases := map[string]bool{"types_1_9_7": false, "types_1_10_8": false, "types_1_11_13": false, "types_1_12_17": false, "types_1_13_8": false}
-	var tempDB *sql.DB
-	var err error
-	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
-			log.Println(err)
-		}
-		if _, ok := expectedDatabases[d]; ok {
-			log.Printf("Found database: %s\n", d)
-			expectedDatabases[d] = true
-			expectedTables := map[string]bool{"concrete_types": false, "concrete_methods": false, "interfaces": false, "interface_methods": false}
-			log.Printf("Connecting to database: %s\n", d)
-			tempDB, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), d))
-			if err != nil {
-				panic(err)
-			}
-			err = tempDB.Ping()
-			if err != nil {
-				panic(err)
-			}
-			log.Printf("Connected to database: %s\n", d)
-			tables, err := tempDB.Query("SELECT table_name from information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
-			if err != nil {
-				panic(err)
-			}
-			for tables.Next() {
-				var s string
-				if err := tables.Scan(&s); err != nil {
-					log.Println(err)
-				} else {
-					_, ok := expectedTables[s]
-					if ok {
-						expectedTables[s] = true
-					}
-				}
-			}
-			missingTables := 0
-			for table, found := range expectedTables {
-				if !found {
-					log.Println("Missing table " + table)
-					missingTables++
-					if err != nil {
-						panic(err)
-					}
-					continue
-				}
-				log.Println("Found table " + table)
-			}
-			if missingTables > 1 {
-				log.Println("Missing tables, repopulating database.")
-				for table := range expectedTables {
-					query := fmt.Sprintf("DROP TABLE %s CASCADE;", table)
-					tempDB.Exec(query)
-				}
-				fileFlag := fmt.Sprintf("./store/postgres/db_data/%s.sql", d)
-				databaseFlag := fmt.Sprintf("%s", d)
-				sqlCommand := exec.Command("psql", "-U", os.Getenv("DB_USER"), "-d", databaseFlag, "-f", fileFlag)
-				fmt.Println(sqlCommand.String())
-				err = sqlCommand.Run()
-				if err != nil {
-					log.Println(err)
-				}
-			}
-			tempDB.Close()
-		}
-	}
-	for database, exists := range expectedDatabases {
-		if !exists {
-			log.Printf("Missing database: %s, creating and populating\n", database)
-			createDBQuery := fmt.Sprintf("CREATE DATABASE %s;", database)
-			_, err := db.Query(createDBQuery)
-			if err != nil {
-				panic(err)
-			}
-			log.Printf("Connecting to database: %s\n", database)
-			tempDB, err = sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), database))
-			if err != nil {
-				panic(err)
-			}
-			err = tempDB.Ping()
-			if err != nil {
-				panic(err)
-			}
-			log.Printf("Connected to database: %s\n", database)
-			fileFlag := fmt.Sprintf("./store/postgres/db_data/%s.sql", database)
-			populateDBCmd := exec.Command("psql", "-h", os.Getenv("DB_HOST"), "-p", os.Getenv("DB_PORT"), "-U", os.Getenv("DB_USER"), "-d", database, "-f", fileFlag)
-			err = populateDBCmd.Run()
-			if err != nil {
-				log.Println(err)
-			}
-			tempDB.Close()
-		}
-	}
 }

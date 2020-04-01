@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -72,7 +73,7 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) []model.InterfaceReco
 	t.updateStore()
 	var interfaces []model.InterfaceRecord
 	for _, v := range t.interfaces {
-		if v.Name == name {
+		if strings.Contains(v.Name, name) {
 			interfaces = append(interfaces, v)
 		}
 	}
@@ -101,7 +102,7 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) []model.ConcreteTy
 	t.updateStore()
 	var types []model.ConcreteTypeRecord
 	for _, v := range t.concreteTypes {
-		if v.Name == name {
+		if strings.Contains(v.Name, name) {
 			types = append(types, v)
 		}
 	}
@@ -148,6 +149,9 @@ func (t *TypeStorePGImpl) updateStore() {
 			t.lastUpdated = time.Now()
 		}
 		t.resolveImplementations()
+	}
+	for id, implementers := range t.interfaceImplementers {
+		log.Printf("Interface with id: %d has %d implementers\n", id, len(implementers))
 	}
 }
 

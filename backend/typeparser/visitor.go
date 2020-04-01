@@ -22,6 +22,7 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 	case *ast.File:
 		f := node.(*ast.File)
 		tv.packageName = f.Name.String()
+
 	case *ast.InterfaceType:
 		record := model.InterfaceRecord{}
 		record.Package = tv.packageName
@@ -33,10 +34,17 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 		if !ok { // This is an interface that is a parameter to a method
 			return tv
 		}
+		_, ok = tv.prevToken.(*ast.Field)
+		if ok { // This is an interface that is a return value from a method
+			return tv
+		}
 		if !util.StartsWithUppercase(previousIdent.String()) { //Interface is unexported, ignore it
 			return tv
 		}
 		record.Name = previousIdent.String()
+		if record.Name == "Val" {
+			fmt.Println(Filename)
+		}
 		record.Implementable = true
 		iface := node.(*ast.InterfaceType)
 		for _, method := range iface.Methods.List {

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 
 	"github.com/smanierre/typer-site/model"
 )
@@ -27,6 +28,8 @@ func NewParser() Parser {
 	}
 }
 
+var Filename string
+
 //ParseFile takes a file and extracts all the interfaces and custom types.
 func (p *Parser) ParseFile(filepath string) error {
 	file, err := parser.ParseFile(p.fs, filepath, nil, parser.AllErrors)
@@ -34,6 +37,7 @@ func (p *Parser) ParseFile(filepath string) error {
 		return fmt.Errorf("unable to parse file: %s", err.Error())
 	}
 	tv := &typeVisitor{}
+	Filename = filepath
 	ast.Walk(tv, file)
 	p.Interfaces = append(p.Interfaces, tv.interfaces...)
 	p.ConcreteTypes = append(p.ConcreteTypes, tv.concreteTypes...)
@@ -63,4 +67,25 @@ func (p *Parser) ResolveMethods() {
 		}
 	}
 	p.Methods = unresolvedMethods
+	p.resolveEmbeddedInterfaces()
+}
+
+func (p *Parser) resolveEmbeddedInterfaces() {
+	for i, iface := range p.Interfaces {
+		for j, method := range iface.Methods {
+			if strings.Contains(method.Name, ".") {
+				for _, compareString := range p.Interfaces {
+					if fmt.Sprintf("%s.%s", compareString.Package, compareString.Name) == method.Name {
+						if len(p.Interfaces[i].Methods) <= 1 {
+							p.Interfaces[i].Methods = compareString.Methods
+						} else {
+							methods := append(p.Interfaces[i].Methods[:j], compareString.Methods...)
+							methods = append(methods, p.Interfaces[i].Methods[j+1:]...)
+							p.Interfaces[i].Methods = methods
+						}
+					}
+				}
+			}
+		}
+	}
 }

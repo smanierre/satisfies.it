@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
+import styled from "styled-components";
 
-import Container from "../StyledComponents/ResultListContainer";
+import ResultsContainer from "../StyledComponents/ResultListContainer";
 import Result from "./Result";
 
 interface IInterfaceResultProps {
@@ -11,7 +12,7 @@ export interface IMethod {
   ID: number;
   Package: string;
   Name: string;
-  Paramaters: string[];
+  Parameters: string[];
   ReceiverName: string;
   ReturnValues: string[];
 }
@@ -24,6 +25,20 @@ export interface IInterfaceResult {
   Methods: IMethod[];
 }
 
+const Layout = styled.div`
+  display: grid;
+  grid-template-columns: 3fr [content] 3fr 3fr;
+  grid-template-rows: [spacer] 25vh [header] 1fr [content] 3fr;
+`;
+
+const ResultHeader = styled.h1`
+  grid-column-start: content;
+  grid-column-end: span 1;
+  grid-row-start: header;
+  font-size: 4.2rem;
+  font-family: "Open Sans";
+`;
+
 const Results: React.FC<IInterfaceResultProps> = ({ searchQuery }) => {
   const [results, setResults] = useState<IInterfaceResult[] | null>(null);
   useEffect(() => {
@@ -32,14 +47,17 @@ const Results: React.FC<IInterfaceResultProps> = ({ searchQuery }) => {
     );
   }, [searchQuery]);
   return (
-    <>
-      <h1>Results for {searchQuery}:</h1>
-      <Container>
+    <Layout>
+      <ResultHeader>
+        Displaying {results?.length ? results?.length : 0} results for{" "}
+        {searchQuery}:
+      </ResultHeader>
+      <ResultsContainer>
         {results?.map(result => (
           <Result key={result.ID} result={result} />
         ))}
-      </Container>
-    </>
+      </ResultsContainer>
+    </Layout>
   );
 };
 export default Results;

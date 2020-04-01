@@ -116,6 +116,7 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 	inter := typeStore.GetInterfaceByID(interfaceID)
 	typeList := []model.ConcreteTypeRecord{}
 	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
+		log.Println("Length of implementing ids is: ", len(typeStore.GetImplementingIDs(interfaceID)))
 		for _, t := range typeStore.GetConcreteTypes() {
 			if t.ID == v {
 				typeList = append(typeList, t)
