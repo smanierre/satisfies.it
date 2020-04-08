@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
 
+import { apiRoot } from "../index";
 import { IInterfaceResult } from "../InterfaceResults/InterfaceResults";
 import { ITypeResult } from "../TypeResults/TypeResults";
 
@@ -41,7 +42,7 @@ const ScrollableList = styled.ul<{ alignment: string }>`
   overflow: auto;
   padding-left: 20px;
   border: 1px solid #01cedf;
-  grid-column-start: ${props =>
+  grid-column-start: ${(props) =>
     props.alignment === "methods" ? "methods" : "implementers"};
   grid-column-end: span 1;
   grid-row-start: lists;
@@ -72,13 +73,13 @@ const InterfaceDisplay: React.FC<{ id: string }> = ({ id }) => {
   const [Interface, setInterface] = useState<IInterfaceResult | null>(null);
   const [Implementers, setImplementers] = useState<ITypeResult[] | null>(null);
   useEffect(() => {
-    fetch(`http://localhost:4000/api/interface/${id}`).then(res =>
-      res.json().then(data => setInterface(data))
+    fetch(`${apiRoot}/interface/${id}`).then((res) =>
+      res.json().then((data) => setInterface(data))
     );
-    fetch(`http://localhost:4000/api/implementers/${id}`).then(res =>
+    fetch(`${apiRoot}/implementers/${id}`).then((res) =>
       res
         .json()
-        .then(data =>
+        .then((data) =>
           data?.Implementers
             ? setImplementers(data.Implementers)
             : setImplementers(null)
@@ -94,7 +95,7 @@ const InterfaceDisplay: React.FC<{ id: string }> = ({ id }) => {
         <Type>Type: Interface</Type>
         <MethodsTitle>Methods</MethodsTitle>
         <ScrollableList alignment="methods">
-          {Interface?.Methods.map(method => (
+          {Interface?.Methods.map((method) => (
             <li key={method.ID}>
               {method.Name}({method.Parameters.join(", ")}){" "}
               {method.ReturnValues.length > 1
@@ -105,7 +106,7 @@ const InterfaceDisplay: React.FC<{ id: string }> = ({ id }) => {
         </ScrollableList>
         <ImplementersTitle>Implementers</ImplementersTitle>
         <ScrollableList alignment="implementers">
-          {Implementers?.map(implementer => (
+          {Implementers?.map((implementer) => (
             <li key={implementer.ID}>
               <Link to={`/type/${implementer.ID}`}>
                 {implementer.Package}.{implementer.Name}

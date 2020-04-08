@@ -12,7 +12,8 @@ const ResultListContainer = styled.ul`
   & a:nth-child(2n) {
     background-color: #333;
   }
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 `;
 
 export default ResultListContainer;

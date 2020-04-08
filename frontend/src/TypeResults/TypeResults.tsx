@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
+import { apiRoot } from "../index";
 import ResultsContainer from "../StyledComponents/ResultListContainer";
 import Result from "./Result";
 
@@ -42,8 +43,8 @@ const ResultHeader = styled.h1`
 const Results: React.FC<ITypeResultProps> = ({ searchQuery }) => {
   const [results, setResults] = useState<ITypeResult[] | null>(null);
   useEffect(() => {
-    fetch(`http://localhost:4000/api/type/${searchQuery}`).then(res =>
-      res.json().then(data => setResults(data))
+    fetch(`${apiRoot}/type/${searchQuery}`).then((res) =>
+      res.json().then((data) => setResults(data))
     );
   }, [searchQuery]);
   return (
@@ -53,7 +54,7 @@ const Results: React.FC<ITypeResultProps> = ({ searchQuery }) => {
         {searchQuery}:
       </ResultHeader>
       <ResultsContainer>
-        {results?.map(result => (
+        {results?.map((result) => (
           <Result key={result.ID} result={result} />
         ))}
       </ResultsContainer>

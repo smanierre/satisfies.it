@@ -140,6 +140,11 @@ func (s StubTypeStore) GetInterfaces() []model.InterfaceRecord {
 	return interfaces
 }
 
+//GetImplementeeIDs is just a placehoder method
+func (s StubTypeStore) GetImplementeeIDs(id int) []int {
+	return []int{}
+}
+
 //GetInterfacesByName is just a placeholder method
 func (s StubTypeStore) GetInterfacesByName(name string) []model.InterfaceRecord {
 	matches := []model.InterfaceRecord{}

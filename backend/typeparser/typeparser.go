@@ -68,6 +68,14 @@ func (p *Parser) ResolveMethods() {
 	}
 	p.Methods = unresolvedMethods
 	p.resolveEmbeddedInterfaces()
+	//Get rid of any empty interfaces as we don't need a list of every type on that page or for a type to implement many useless interfaces.
+	nonEmptyInterfaces := []model.InterfaceRecord{}
+	for _, iFace := range p.Interfaces {
+		if len(iFace.Methods) > 0 {
+			nonEmptyInterfaces = append(nonEmptyInterfaces, iFace)
+		}
+	}
+	p.Interfaces = nonEmptyInterfaces
 }
 
 func (p *Parser) resolveEmbeddedInterfaces() {

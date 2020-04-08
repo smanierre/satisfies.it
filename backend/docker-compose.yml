@@ -13,7 +13,7 @@ services:
         # restart:
         #     - unless stopped
     web:
-        build: .
+        image: typer-site
         depends_on: 
             - db
         ports:

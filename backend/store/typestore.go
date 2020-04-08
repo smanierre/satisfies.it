@@ -24,6 +24,7 @@ type TypeStore interface {
 	GetConcreteTypeByID(id int) model.ConcreteTypeRecord
 	GetConcreteTypesByName(name string) []model.ConcreteTypeRecord
 	GetImplementingIDs(id int) []int
+	GetImplementeeIDs(id int) []int
 }
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
@@ -32,6 +33,7 @@ type TypeStorePGImpl struct {
 	concreteTypes         []model.ConcreteTypeRecord
 	methods               []model.MethodRecord
 	interfaceImplementers map[int][]int
+	typeImplementees      map[int][]int
 	lastUpdated           time.Time
 }
 
@@ -73,7 +75,7 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) []model.InterfaceReco
 	t.updateStore()
 	var interfaces []model.InterfaceRecord
 	for _, v := range t.interfaces {
-		if strings.Contains(v.Name, name) {
+		if strings.Contains(strings.ToLower(v.Name), strings.ToLower(name)) {
 			interfaces = append(interfaces, v)
 		}
 	}
@@ -129,6 +131,14 @@ func (t *TypeStorePGImpl) GetImplementingIDs(id int) []int {
 	return nil
 }
 
+func (t *TypeStorePGImpl) GetImplementeeIDs(id int) []int {
+	val, ok := t.typeImplementees[id]
+	if ok {
+		return val
+	}
+	return nil
+}
+
 func (t *TypeStorePGImpl) updateStore() {
 	rate, err := strconv.Atoi(os.Getenv("DATABASE_REFRESH_RATE"))
 	if err != nil {
@@ -149,9 +159,6 @@ func (t *TypeStorePGImpl) updateStore() {
 			t.lastUpdated = time.Now()
 		}
 		t.resolveImplementations()
-	}
-	for id, implementers := range t.interfaceImplementers {
-		log.Printf("Interface with id: %d has %d implementers\n", id, len(implementers))
 	}
 }
 
@@ -236,6 +243,7 @@ func (t *TypeStorePGImpl) getAndParseMethods() error {
 }
 
 func (t *TypeStorePGImpl) resolveImplementations() {
+	//Resolve interface implementers
 	interfaceImplementers := map[int][]int{}
 	implementingIds := []int{}
 	for _, i := range t.interfaces {
@@ -251,6 +259,20 @@ func (t *TypeStorePGImpl) resolveImplementations() {
 		implementingIds = []int{}
 	}
 	t.interfaceImplementers = interfaceImplementers
+
+	//Piggy back of the work done above to resolve type implementees
+	typeImplementees := map[int][]int{}
+	for iface, typeIDs := range interfaceImplementers {
+		for _, id := range typeIDs {
+			idList, ok := typeImplementees[id]
+			if ok {
+				typeImplementees[id] = append(idList, iface)
+				continue
+			}
+			typeImplementees[id] = []int{iface}
+		}
+	}
+	t.typeImplementees = typeImplementees
 }
 
 func doesImplement(iface model.InterfaceRecord, ct model.ConcreteTypeRecord) bool {

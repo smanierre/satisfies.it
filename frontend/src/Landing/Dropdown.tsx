@@ -18,14 +18,12 @@ const StyledDropdown = styled.select`
   color: white;
   font-size: 2.4rem;
 
+  &:hover {
+    cursor: pointer;
+  }
   &:focus + span {
     transform: rotate(180deg);
   }
-`;
-
-const ArrowSpan = styled.span`
-  display: inline-block;
-  transition: all 0.3s;
 `;
 
 const Dropdown: React.FC<{
@@ -33,7 +31,7 @@ const Dropdown: React.FC<{
 }> = ({ setType }) => (
   <ContainerSpan>
     <StyledDropdown
-      onChange={e => {
+      onChange={(e) => {
         document.querySelector("input")?.focus();
         setType(e.target.value);
       }}
@@ -41,7 +39,6 @@ const Dropdown: React.FC<{
       <option value="interface">Interfaces</option>
       <option value="type">Concrete Types</option>
     </StyledDropdown>
-    <ArrowSpan>&#9660;</ArrowSpan>
   </ContainerSpan>
 );
 export default Dropdown;

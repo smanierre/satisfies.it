@@ -16,6 +16,7 @@ var endpoints = map[string]func(http.ResponseWriter, *http.Request){
 	"/type":          getAllTypes,
 	"/type/":         getSingleTypeByID,
 	"/implementers/": getImplementingTypes,
+	"/implementees/": getImplementedInterfaces,
 }
 
 func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +117,6 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 	inter := typeStore.GetInterfaceByID(interfaceID)
 	typeList := []model.ConcreteTypeRecord{}
 	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
-		log.Println("Length of implementing ids is: ", len(typeStore.GetImplementingIDs(interfaceID)))
 		for _, t := range typeStore.GetConcreteTypes() {
 			if t.ID == v {
 				typeList = append(typeList, t)
@@ -130,6 +130,38 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 	}{
 		Interface:    inter,
 		Implementers: typeList,
+	}
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(returnJSON)
+}
+
+func getImplementedInterfaces(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	typeIDQuery := r.URL.Path[strings.Index(r.URL.Path, "/implementees/")+14:]
+	typeID, err := strconv.Atoi(typeIDQuery)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	concreteType := typeStore.GetConcreteTypeByID(typeID)
+	interfaceList := []model.InterfaceRecord{}
+	for _, v := range typeStore.GetImplementeeIDs(typeID) {
+		for _, i := range typeStore.GetInterfaces() {
+			if i.ID == v {
+				interfaceList = append(interfaceList, i)
+				continue
+			}
+		}
+	}
+	returnJSON := struct {
+		Type         model.ConcreteTypeRecord
+		Implementees []model.InterfaceRecord
+	}{
+		Type:         concreteType,
+		Implementees: interfaceList,
 	}
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(returnJSON)

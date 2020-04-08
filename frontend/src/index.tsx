@@ -3,12 +3,14 @@ import ReactDOM from "react-dom";
 import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
 
 import Navbar from "./StyledComponents/Navbar";
-import Landing from "./Landing/Landing.tsx";
+import Landing from "./Landing/Landing";
 import InterfaceResults from "./InterfaceResults/InterfaceResults";
 import TypeResults from "./TypeResults/TypeResults";
 import GlobalStyles from "./GlobalStyles";
 import InterfaceDisplay from "./InterfaceDisplay/InterfaceDisplay";
 import TypeDisplay from "./TypeDisplay/TypeDisplay";
+
+export const apiRoot = "http://localhost:4000/api";
 
 const Index: React.FC = () => {
   return (
@@ -24,7 +26,7 @@ const Index: React.FC = () => {
           </Route>
           <Route
             path="/results/interface/:query"
-            render={routeProps => {
+            render={(routeProps) => {
               let query: string = "";
               if (typeof routeProps.match.params.query === "string") {
                 query = routeProps.match.params.query;
@@ -34,7 +36,7 @@ const Index: React.FC = () => {
           />
           <Route
             path="/results/type/:query"
-            render={routeProps => {
+            render={(routeProps) => {
               let query: string = "";
               if (typeof routeProps.match.params.query === "string") {
                 query = routeProps.match.params.query;
@@ -44,7 +46,7 @@ const Index: React.FC = () => {
           />
           <Route
             path="/interface/:id"
-            render={routeProps => {
+            render={(routeProps) => {
               let id: string = "";
               if (typeof routeProps.match.params.id === "string") {
                 id = routeProps.match.params.id;
@@ -54,7 +56,7 @@ const Index: React.FC = () => {
           />
           <Route
             path="/type/:id"
-            render={routeProps => {
+            render={(routeProps) => {
               let id: string = "";
               if (typeof routeProps.match.params.id === "string") {
                 id = routeProps.match.params.id;

@@ -1,13 +1,11 @@
 package postgres
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -66,6 +64,7 @@ func InitDB() {
 				_, err = tempdb.Exec("CREATE DATABASE types;")
 				if err != nil {
 					log.Println("Successfully created types database")
+					break
 				}
 			} else {
 				log.Fatal("Unable to connect to postgres database.")
@@ -78,9 +77,8 @@ func InitDB() {
 		}
 	}
 	log.Println("***Successfully connected to database***")
-
 	log.Println("Reading db setup file.")
-	fileContents, err := ioutil.ReadFile("./store/postgres/dbsetup.sql")
+	fileContents, err := ioutil.ReadFile("./dbsetup.sql")
 	if err != nil {
 		log.Fatalf("Unable to read dbsetup file: %s\n", err.Error())
 	}
@@ -91,14 +89,6 @@ func InitDB() {
 		if err != nil {
 			log.Fatalf("Unable to execute query %s.\n%s\n", statement, err.Error())
 		}
-	}
-	log.Println("Populating database")
-	cmd := exec.Command("psql", "-U", os.Getenv("DB_USER"), "-h", os.Getenv("DB_HOST"), "-d", os.Getenv("DB_NAME"), "-a", "-f", "./store/postgres/dump.pgsql")
-	stderr := bytes.Buffer{}
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println(stderr.String())
 	}
 
 	createTypeStatement, err = db.Prepare(concreteTypeInsertQuery)

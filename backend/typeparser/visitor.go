@@ -14,6 +14,7 @@ type typeVisitor struct {
 	concreteTypes []model.ConcreteTypeRecord
 	methods       []model.MethodRecord
 	prevToken     ast.Node
+	twoBack       ast.Node
 	packageName   string
 }
 
@@ -38,13 +39,14 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 		if ok { // This is an interface that is a return value from a method
 			return tv
 		}
+		_, ok = tv.twoBack.(*ast.Field)
+		if ok { //This is an interface that is a field in a struct
+			return tv
+		}
 		if !util.StartsWithUppercase(previousIdent.String()) { //Interface is unexported, ignore it
 			return tv
 		}
 		record.Name = previousIdent.String()
-		if record.Name == "Val" {
-			fmt.Println(Filename)
-		}
 		record.Implementable = true
 		iface := node.(*ast.InterfaceType)
 		for _, method := range iface.Methods.List {
@@ -109,6 +111,9 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 			methodRecord.ID = -1
 			methodRecord.ReceiverID = -1
 			record.Methods = append(record.Methods, methodRecord)
+		}
+		if record.Name == "Val" {
+			fmt.Printf("Val interface found in filename: %s\n", Filename)
 		}
 		tv.interfaces = append(tv.interfaces, record)
 	case *ast.TypeSpec:
@@ -185,6 +190,7 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 		tv.methods = append(tv.methods, methodRecord)
 	}
 	if node != nil {
+		tv.twoBack = tv.prevToken
 		tv.prevToken = node
 	}
 	return tv

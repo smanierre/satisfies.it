@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
 
+import { apiRoot } from "../index";
 import { IInterfaceResult } from "../InterfaceResults/InterfaceResults";
 import { ITypeResult } from "../TypeResults/TypeResults";
 
@@ -41,7 +42,7 @@ const ScrollableList = styled.ul<{ alignment: string }>`
   overflow: auto;
   padding-left: 20px;
   border: 1px solid #01cedf;
-  grid-column-start: ${props =>
+  grid-column-start: ${(props) =>
     props.alignment === "methods" ? "methods" : "implementees"};
   grid-column-end: span 1;
   grid-row-start: lists;
@@ -75,14 +76,14 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
     null
   );
   useEffect(() => {
-    fetch(`http://localhost:4000/api/type/${id}`).then(res =>
-      res.json().then(data => setType(data))
+    fetch(`${apiRoot}/type/${id}`).then((res) =>
+      res.json().then((data) => setType(data))
     );
-    fetch(`http://localhost:4000/api/implementers/${id}`).then(res =>
+    fetch(`${apiRoot}/implementees/${id}`).then((res) =>
       res
         .json()
-        .then(data =>
-          data?.Implementers
+        .then((data) =>
+          data?.Implementees
             ? setImplementees(data.Implementees)
             : setImplementees(null)
         )
@@ -98,7 +99,7 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
         <MethodsTitle>Methods</MethodsTitle>
         <ScrollableList alignment="methods">
           {Type?.Methods
-            ? Type?.Methods.map(method => (
+            ? Type?.Methods.map((method) => (
                 <li key={method.ID}>
                   {method.Name}({method.Parameters.join(", ")}){" "}
                   {method.ReturnValues.length > 1
@@ -108,11 +109,11 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
               ))
             : null}
         </ScrollableList>
-        <ImplementeesTitle>Implementees</ImplementeesTitle>
+        <ImplementeesTitle>Implements</ImplementeesTitle>
         <ScrollableList alignment="implementers">
-          {Implementees?.map(implementee => (
+          {Implementees?.map((implementee) => (
             <li key={implementee.ID}>
-              <Link to={`/struct/${implementee.ID}`}>
+              <Link to={`/interface/${implementee.ID}`}>
                 {implementee.Package}.{implementee.Name}
               </Link>
             </li>

@@ -20,9 +20,13 @@ const Landing: React.FC = () => {
   const [searchType, setSearchType] = useState("interface");
   return (
     <Container
-      onSubmit={e => {
+      onSubmit={(e) => {
         e.preventDefault();
-        history.push(`/results/${searchType}/${searchQuery}`);
+        if (searchQuery === "") {
+          history.push(`/results/${searchType}/ `);
+        } else {
+          history.push(`/results/${searchType}/${searchQuery}`);
+        }
       }}
     >
       <img src="./logo.svg" alt="Satisfies.it" />

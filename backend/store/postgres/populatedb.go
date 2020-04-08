@@ -9,13 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"github.com/smanierre/typer-site/typeparser"
 )
 
 //Only use this to create and export a database to be loaded into the production system. For loading in production use LoadDB()
 func DEVELOPMENT_PopulateDatabaseAndExport() {
-
 	p := typeparser.NewParser()
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if !strings.Contains(path, "_test.go") && path[len(path)-3:] == ".go" {
@@ -32,10 +30,8 @@ func DEVELOPMENT_PopulateDatabaseAndExport() {
 		}
 		return nil
 	}
-	filepath.Walk("/usr/local/go/src", walkFunc)
+	filepath.Walk("./src", walkFunc)
 	p.ResolveMethods()
-	godotenv.Load("./.env_dev")
-	InitDB()
 	for i, c := range p.ConcreteTypes {
 		id := CreateConcreteType(c.Package, c.Name, c.BaseType)
 		p.ConcreteTypes[i].ID = id
@@ -54,13 +50,13 @@ func DEVELOPMENT_PopulateDatabaseAndExport() {
 			p.Interfaces[n].Methods[j].ID = mid
 		}
 	}
-	cmd := exec.Command("rm", "./store/postgres/dump.pgsql")
+	cmd := exec.Command("rm", "./dump.pgsql")
 	cmd.Run()
-	dumpFile, err := os.Create("./store/postgres/dump.pgsql")
+	dumpFile, err := os.Create("./dump.pgsql")
 	if err != nil {
 		log.Fatalf("Error opening file: %s\n", err.Error())
 	}
-	cmd = exec.Command("pg_dump", "types")
+	cmd = exec.Command("pg_dump", "-U", os.Getenv("DB_USER"), "-h", os.Getenv("DB_HOST"), "types")
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
 	cmd.Stdout = dumpFile
@@ -72,8 +68,7 @@ func DEVELOPMENT_PopulateDatabaseAndExport() {
 }
 
 func LoadDB() error {
-	godotenv.Load("./.env")
-	InitDB()
+	dropTables()
 	cmd := exec.Command("psql", "-U", os.Getenv("DB_USER"), "-h", os.Getenv("DB_HOST"), "-d", os.Getenv("DB_NAME"), "-a", "-f", "dump.pgsql")
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
@@ -82,4 +77,11 @@ func LoadDB() error {
 		fmt.Println(stderr.String())
 	}
 	return nil
+}
+
+func dropTables() {
+	db.Exec("DROP TABLE IF EXISTS public.CONCRETE_TYPES CASCADE;")
+	db.Exec("DROP TABLE IF EXISTS public.INTERFACES CASCADE;")
+	db.Exec("DROP TABLE IF EXISTS public.CONCRETE_METHODS;")
+	db.Exec("DROP TABLE IF EXISTS public.INTERFACE_METHODS;")
 }
