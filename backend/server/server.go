@@ -27,6 +27,8 @@ func NewServer(store store.TypeStore) Server {
 
 func (s Server) registerEndpoints() {
 	typeStore = s.TypeStore
+	fs := http.FileServer(http.Dir("./static"))
+	http.Handle("/", fs)
 	for k, v := range endpoints {
 		log.Printf("Registering endpoint /api%s\n", k)
 		http.Handle("/api"+k, allowCorsMiddleware(http.HandlerFunc(v)))

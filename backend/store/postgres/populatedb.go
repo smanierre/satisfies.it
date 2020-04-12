@@ -30,7 +30,7 @@ func DEVELOPMENT_PopulateDatabaseAndExport() {
 		}
 		return nil
 	}
-	filepath.Walk("./src", walkFunc)
+	filepath.Walk("/usr/local/go/src", walkFunc)
 	p.ResolveMethods()
 	for i, c := range p.ConcreteTypes {
 		id := CreateConcreteType(c.Package, c.Name, c.BaseType)
@@ -56,7 +56,7 @@ func DEVELOPMENT_PopulateDatabaseAndExport() {
 	if err != nil {
 		log.Fatalf("Error opening file: %s\n", err.Error())
 	}
-	cmd = exec.Command("pg_dump", "-U", os.Getenv("DB_USER"), "-h", os.Getenv("DB_HOST"), "types")
+	cmd = exec.Command("pg_dump", "types")
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
 	cmd.Stdout = dumpFile
