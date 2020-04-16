@@ -140,26 +140,27 @@ func (t *TypeStorePGImpl) GetImplementeeIDs(id int) []int {
 }
 
 func (t *TypeStorePGImpl) updateStore() {
-	rate, err := strconv.Atoi(os.Getenv("DATABASE_REFRESH_RATE"))
-	if err != nil {
-		log.Println("unable to read database refresh rate from environment, defaulting to 9999 seconds")
-		rate = 9999
-	}
-	rateDuration := time.Duration(rate)
-	if t.lastUpdated.Sub(time.Now()) < time.Second*-rateDuration {
-		log.Println("Updating TypeStore from database")
-		err := t.getAndParseTypes()
-		if err != nil {
-			log.Printf("Error updating store: %s\n", err)
-		}
-		err = t.getAndParseMethods()
-		if err != nil {
-			log.Printf("Error updating store: %s\n", err)
-		} else {
-			t.lastUpdated = time.Now()
-		}
-		t.resolveImplementations()
-	}
+	//Commented out because at the time, there is no need to update the store as data won't change without the server being restarted
+	// rate, err := strconv.Atoi(os.Getenv("DATABASE_REFRESH_RATE"))
+	// if err != nil {
+	// 	log.Println("unable to read database refresh rate from environment, defaulting to 9999 seconds")
+	// 	rate = 9999
+	// }
+	// rateDuration := time.Duration(rate)
+	// if t.lastUpdated.Sub(time.Now()) < time.Second*-rateDuration {
+	// 	log.Println("Updating TypeStore from database")
+	// 	err := t.getAndParseTypes()
+	// 	if err != nil {
+	// 		log.Printf("Error updating store: %s\n", err)
+	// 	}
+	// 	err = t.getAndParseMethods()
+	// 	if err != nil {
+	// 		log.Printf("Error updating store: %s\n", err)
+	// 	} else {
+	// 		t.lastUpdated = time.Now()
+	// 	}
+	// 	t.resolveImplementations()
+	// }
 }
 
 func (t *TypeStorePGImpl) getAndParseTypes() error {
