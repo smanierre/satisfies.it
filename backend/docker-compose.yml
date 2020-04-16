@@ -13,7 +13,7 @@ services:
         # restart:
         #     - unless stopped
     web:
-        image: typer-site
+        image: smanierre/typer-site
         depends_on: 
             - db
         ports:
