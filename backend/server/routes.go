@@ -44,6 +44,7 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	i := typeStore.GetInterfaceByID(id)
 	if i.Package == "" {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	json.NewEncoder(w).Encode(i)
