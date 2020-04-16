@@ -31,7 +31,7 @@ func (s Server) registerEndpoints() {
 	http.Handle("/", fs)
 	for k, v := range endpoints {
 		log.Printf("Registering endpoint /api%s\n", k)
-		http.Handle("/api"+k, allowCorsMiddleware(http.HandlerFunc(v)))
+		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
 }
 

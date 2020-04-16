@@ -104,7 +104,7 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) []model.ConcreteTy
 	t.updateStore()
 	var types []model.ConcreteTypeRecord
 	for _, v := range t.concreteTypes {
-		if strings.Contains(v.Name, name) {
+		if strings.Contains(strings.ToLower(v.Name), strings.ToLower(name)) {
 			types = append(types, v)
 		}
 	}
