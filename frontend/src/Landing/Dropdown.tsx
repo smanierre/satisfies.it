@@ -18,6 +18,10 @@ const StyledDropdown = styled.select`
   color: white;
   font-size: 2.4rem;
 
+  & option {
+    background: #444;
+  }
+
   &:hover {
     cursor: pointer;
   }
@@ -31,7 +35,7 @@ const Dropdown: React.FC<{
 }> = ({ setType }) => (
   <ContainerSpan>
     <StyledDropdown
-      onChange={(e) => {
+      onChange={e => {
         document.querySelector("input")?.focus();
         setType(e.target.value);
       }}
