@@ -73,15 +73,15 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) []model.InterfaceReco
 	t.updateStore()
 	var interfaces []model.InterfaceRecord
 	pkg := false
-	if strings.Index(name, ".") != -1  {
+	if strings.Index(name, ".") != -1 {
 		pkg = true
 	}
 	for _, v := range t.interfaces {
 		interfaceName := strings.ToLower(v.Name)
 		if pkg {
-			interfaceName = fmt.Sprintf("%s.%s",strings.ToLower(v.Package), interfaceName)
+			interfaceName = fmt.Sprintf("%s.%s", strings.ToLower(v.Package), interfaceName)
 		}
-		if strings.Contains(strings.ToLower(interfaceName, strings.ToLower(name)) {
+		if strings.Contains(strings.ToLower(interfaceName, strings.ToLower(name))) {
 			interfaces = append(interfaces, v)
 		}
 	}
@@ -116,7 +116,7 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) []model.ConcreteTy
 	for _, v := range t.concreteTypes {
 		typeName := strings.ToLower(v.Name)
 		if pkg {
-			typeName = fmt.Sprintf("%s.%s",strings.ToLower(v.Package), typeName)
+			typeName = fmt.Sprintf("%s.%s", strings.ToLower(v.Package), typeName)
 		}
 		if strings.Contains(typeName, strings.ToLower(name)) {
 			types = append(types, v)
