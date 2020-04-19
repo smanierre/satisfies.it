@@ -53,6 +53,10 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 func getInterfacesByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
+	dot := strings.Index(interfaceQuery, ".")
+	if dot != nil {
+		interfaceQuery = interfaceQuery[dot+1:]
+	}
 	interfaces := typeStore.GetInterfacesByName(interfaceQuery)
 	if len(interfaces) == 0 {
 		w.WriteHeader(http.StatusNotFound)
@@ -95,6 +99,10 @@ func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
 func getTypesByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
+	dot := strings.Index(typeQuery, ".")
+	if dot != nil {
+		typeQuery = typeQuery[dot+1:]
+	}
 	types := typeStore.GetConcreteTypesByName(typeQuery)
 	if len(types) == 0 {
 		w.WriteHeader(http.StatusNotFound)
