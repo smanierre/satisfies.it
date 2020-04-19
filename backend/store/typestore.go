@@ -81,7 +81,7 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) []model.InterfaceReco
 		if pkg {
 			interfaceName = fmt.Sprintf("%s.%s", strings.ToLower(v.Package), interfaceName)
 		}
-		if strings.Contains(strings.ToLower(interfaceName, strings.ToLower(name))) {
+		if strings.Contains(strings.ToLower(interfaceName), strings.ToLower(name)) {
 			interfaces = append(interfaces, v)
 		}
 	}
