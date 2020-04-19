@@ -42,11 +42,11 @@ const ScrollableList = styled.ul<{ alignment: string }>`
   overflow: auto;
   padding-left: 20px;
   border: 1px solid #01cedf;
+  height: 40vh;
   grid-column-start: ${(props) =>
     props.alignment === "methods" ? "methods" : "implementees"};
   grid-column-end: span 1;
   grid-row-start: lists;
-  height: 100%;
   list-style-type: none;
 
   & li a {

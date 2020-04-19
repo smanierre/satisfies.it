@@ -46,7 +46,7 @@ const ScrollableList = styled.ul<{ alignment: string }>`
     props.alignment === "methods" ? "methods" : "implementers"};
   grid-column-end: span 1;
   grid-row-start: lists;
-  height: 100%;
+  height: 40vh;
   list-style-type: none;
 
   & li a {
