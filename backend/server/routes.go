@@ -54,7 +54,7 @@ func getInterfacesByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
 	dot := strings.Index(interfaceQuery, ".")
-	if dot != nil {
+	if dot != -1 {
 		interfaceQuery = interfaceQuery[dot+1:]
 	}
 	interfaces := typeStore.GetInterfacesByName(interfaceQuery)
@@ -100,7 +100,7 @@ func getTypesByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
 	dot := strings.Index(typeQuery, ".")
-	if dot != nil {
+	if dot != -1 {
 		typeQuery = typeQuery[dot+1:]
 	}
 	types := typeStore.GetConcreteTypesByName(typeQuery)
