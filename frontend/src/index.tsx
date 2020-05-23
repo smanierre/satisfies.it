@@ -10,7 +10,7 @@ import GlobalStyles from "./GlobalStyles";
 import InterfaceDisplay from "./InterfaceDisplay/InterfaceDisplay";
 import TypeDisplay from "./TypeDisplay/TypeDisplay";
 
-export const apiRoot = "http://localhost:4000/api";
+export const apiRoot = "https://satisfies.it/api";
 
 const Index: React.FC = () => {
   return (
