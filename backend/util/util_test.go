@@ -68,3 +68,23 @@ func TestContains(t *testing.T) {
 		})
 	}
 }
+
+func TestGetFileName(t *testing.T) {
+	tc := []struct {
+		Name     string
+		TestPath string
+		Expected string
+	}{
+		{"normal filepath", "/home/user/project/main.go", "main.go"},
+		{"without extension", "/home/user/project/main", "main"},
+		{"with numbers", "/home/user/project/12", "12"},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			if name := GetFileName(tt.TestPath); name != tt.Expected {
+				t.Errorf("Expected name: %s, got: %s\n", tt.Expected, name)
+			}
+		})
+	}
+}
