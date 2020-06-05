@@ -27,7 +27,7 @@ func main() {
 	// 	log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	// }
 	p := parser.NewParser()
-	windowsFile := "C:\\Users\\Sean\\Projects\\typer-site\\backend\\parser\\parser.go"
+	windowsFile := "C:\\Go\\src\\net\\http\\http.go"
 	linuxFile := "/home/sean/Projects/typer-site/backend/parser/types.go"
 	var filePath string
 	if runtime.GOOS == "linux" {

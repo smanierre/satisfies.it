@@ -110,7 +110,18 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 
 				//Resolve parameters of the method
 				for _, parameter := range funcDecl.Type.Params.List {
-
+					switch parameter.Type.(type) {
+					case *ast.Ident:
+						ident := parameter.Type.(*ast.Ident)
+						//If the type is exported, append package name in front of it.
+						if util.StartsWithUppercase(ident.Name) {
+							method.Parameters = append(method.Parameters, fmt.Sprintf("%s.%s", file.Name.Name, ident.Name))
+							continue
+						}
+						method.Parameters = append(method.Parameters, ident.Name)
+					default:
+						fmt.Printf("Unknown type when parsing method parameters: %T\n", parameter.Type)
+					}
 				}
 			default:
 				fmt.Printf("Unknown Declaration type: %T\n", decl)
@@ -202,189 +213,26 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 	}
 }
 
-/*
-Use the Decls field on the File object to search the file for type and function declarations and parse accordingly. Should be cleaner.
-*/
+type parameterBuilder string
 
-// func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
-// 	switch node.(type) {
-// 	case *ast.File:
-// 		f := node.(*ast.File)
-// 		tv.packageName = f.Name.String()
-
-// 	case *ast.InterfaceType:
-// 		previousIdent, ok := tv.prevToken.(*ast.Ident)
-// 		if !ok { // This is an interface that is a parameter to a method
-// 			return tv
-// 		}
-// 		_, ok = tv.prevToken.(*ast.Field)
-// 		if ok { // This is an interface that is a return value from a method
-// 			return tv
-// 		}
-// 		_, ok = tv.twoBack.(*ast.Field)
-// 		if ok { //This is an interface that is a field in a struct
-// 			return tv
-// 		}
-// 		if !util.StartsWithUppercase(previousIdent.String()) { //Interface is unexported, ignore it
-// 			return tv
-// 		}
-// 		record := CustomType{}
-// 		record.Package = tv.packageName
-// 		record.Methods = []Method{}
-// 		record.Type = Interface
-// 		record.Name = previousIdent.String()
-
-// 		iface := node.(*ast.InterfaceType)
-// 		for _, method := range iface.Methods.List {
-// 			methodRecord := Method{}
-// 			if len(method.Names) == 0 { //Embedded interface
-// 				switch method.Type.(type) {
-// 				case *ast.Ident: //Embedded interface is within the same package
-// 					ident := method.Type.(*ast.Ident)
-// 					methodRecord.Name =  ident.Name
-// 					methodRecord.Parameters = []string{}
-// 					methodRecord.ReturnValues = []string{}
-// 					methodRecord.Receiver = &record
-// 					record.Methods = append(record.Methods, methodRecord)
-// 					continue
-// 				case *ast.SelectorExpr:
-// 					selectorExpr := method.Type.(*ast.SelectorExpr)
-// 					methodRecord.Name = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-// 					methodRecord.Parameters = []string{}
-// 					methodRecord.ReturnValues = []string{}
-// 					methodRecord.Receiver = &record
-// 					record.Methods = append(record.Methods, methodRecord)
-// 					continue
-// 				}
-// 			} else {
-// 				methodRecord.Name = method.Names[0].String()
-// 			}
-// 			funcDec := method.Type.(*ast.FuncType)
-// 			parameters := []string{}
-// 			for _, parameter := range funcDec.Params.List {
-// 				numParam := len(parameter.Names)
-// 				param := astBuilder{packageName: tv.packageName}
-// 				param.parseAst(parameter)
-// 				for i := 0; i < numParam; i++ {
-// 					parameters = append(parameters, param.String())
-// 				}
-// 				if numParam == 0 { //If the param is nameless, still add it once to show it exists
-// 					parameters = append(parameters, param.String())
-// 				}
-// 			}
-// 			methodRecord.Parameters = parameters
-// 			returnValues := []string{}
-// 			if funcDec.Results != nil {
-// 				for _, returnValue := range funcDec.Results.List {
-// 					result := astBuilder{packageName: tv.packageName}
-// 					result.parseAst(returnValue)
-// 					returnValues = append(returnValues, result.String())
-// 				}
-// 			}
-// 			methodRecord.ReturnValues = returnValues
-// 			methodRecord.Receiver = &record
-// 			record.Methods = append(record.Methods, methodRecord)
-// 		}
-// 		tv.Types = append(tv.Types, record)
-// 	case *ast.TypeSpec:
-// 		typeSpec := node.(*ast.TypeSpec)
-// 		structRecord := model.ConcreteTypeRecord{}
-// 		structRecord.Package = tv.packageName
-// 		structRecord.Name = typeSpec.Name.String()
-// 		structRecord.Methods = []model.MethodRecord{}
-// 		structRecord.ID = -1
-// 		_, ok := typeSpec.Type.(*ast.StructType)
-// 		if ok { //Since the astBuilder parses more than just the base type e.g. "struct", limit
-// 			structRecord.BaseType = "struct"
-// 		} else {
-// 			baseType := astBuilder{packageName: tv.packageName}
-// 			baseType.parseAst(typeSpec.Type)
-// 			structRecord.BaseType = baseType.String()
-// 		}
-// 		tv.Types = append(tv.Types, structRecord)
-// 	case *ast.FuncDecl:
-// 		funcDecl := node.(*ast.FuncDecl)
-// 		if funcDecl.Recv == nil { //No receiver means it's just a regular fuction and not a method
-// 			return tv
-// 		}
-// 		if !util.StartsWithUppercase(funcDecl.Name.Name) { //Unexported method
-// 			return tv
-// 		}
-// 		//Check to see if the method is on an unexported type. If so, ignore it.
-// 		var recvname string
-// 		starExpr, ok := funcDecl.Recv.List[0].Type.(*ast.StarExpr)
-// 		recvname = fmt.Sprint(funcDecl.Recv.List[0].Type)
-// 		if ok {
-// 			recvname = fmt.Sprint(starExpr.X)
-// 		}
-// 		if !util.StartsWithUppercase(recvname) {
-// 			return tv
-// 		}
-// 		methodRecord := model.MethodRecord{}
-// 		methodRecord.Package = tv.packageName
-// 		methodRecord.Name = funcDecl.Name.Name
-// 		switch funcDecl.Recv.List[0].Type.(type) { //Check to see if pointer receiver is used or not
-// 		case *ast.StarExpr: //Pointer receiver
-// 			starExpr := funcDecl.Recv.List[0].Type.(*ast.StarExpr)
-// 			methodRecord.ReceiverName = fmt.Sprintf("*%s", starExpr.X)
-// 		case *ast.Ident: //Regular receiver
-// 			methodRecord.ReceiverName = fmt.Sprint(funcDecl.Recv.List[0].Type)
-// 		}
-// 		methodRecord.ReceiverID = -1
-// 		methodRecord.ID = -1
-// 		parameters := []string{}
-// 		for _, parameter := range funcDecl.Type.Params.List {
-// 			numParam := len(parameter.Names)
-// 			param := astBuilder{packageName: tv.packageName}
-// 			param.parseAst(parameter)
-// 			for i := 0; i < numParam; i++ {
-// 				parameters = append(parameters, param.String())
-// 			}
-// 			if numParam == 0 { //If the param is nameless, still add it once to show it exists
-// 				parameters = append(parameters, param.String())
-// 			}
-// 		}
-// 		methodRecord.Parameters = parameters
-// 		returnValues := []string{}
-// 		if funcDecl.Type.Results != nil {
-// 			for _, returnValue := range funcDecl.Type.Results.List {
-// 				result := astBuilder{packageName: tv.packageName}
-// 				result.parseAst(returnValue)
-// 				returnValues = append(returnValues, result.String())
-// 			}
-// 		}
-// 		methodRecord.ReturnValues = returnValues
-// 		tv.methods = append(tv.methods, methodRecord)
-// 	}
-// 	if node != nil {
-// 		tv.twoBack = tv.prevToken
-// 		tv.prevToken = node
-// 	}
-// 	return tv
-// }
-
-type astBuilder struct {
-	packageName string
-	astString   string
-}
-
-func (a *astBuilder) parseAst(node ast.Node) {
+func (p *parameterBuilder) parseParameter(node ast.Node) {
 	switch node.(type) {
 	case *ast.Field:
 		field := node.(*ast.Field)
-		a.parseAst(field.Type)
+		p.parseParameter(field.Type)
 	case *ast.SelectorExpr:
 		selectorExpr := node.(*ast.SelectorExpr)
-		a.astString += fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
+		*p += parameterBuilder(fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel))
 	case *ast.ArrayType:
 		arrayType := node.(*ast.ArrayType)
-		a.astString += "[]"
-		a.parseAst(arrayType.Elt)
+		*p += "[]"
+		p.parseParameter(arrayType.Elt)
 	case *ast.Ident:
+		//TODO: Update this logic to be like the others and assume it's builtin or append the package name
 		if !util.IsBuiltinType(fmt.Sprint(node)) {
-			a.astString += fmt.Sprintf("%s.%s", a.packageName, node)
+			p.astString += fmt.Sprintf("%s.%s", a.packageName, node)
 		} else {
-			a.astString += fmt.Sprintf("%s", node)
+			p.astString += fmt.Sprintf("%s", node)
 		}
 	case *ast.StarExpr:
 		starExpr := node.(*ast.StarExpr)
