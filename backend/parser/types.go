@@ -1,5 +1,11 @@
 package parser
 
+import (
+	"fmt"
+)
+
+//go:generate stringer -type=Type
+
 //Type is an alias for int to represent different types for CustomTypes. 0 means it's an Interface, 1 means it's a Concrete Type.
 type Type int
 
@@ -23,7 +29,15 @@ type CustomType struct {
 type Method struct {
 	Name            string
 	PointerReceiver bool
-	Receiver        *CustomType
+	Receiver        string
 	Parameters      []string
 	ReturnValues    []string
+}
+
+func (c CustomType) String() string {
+	return fmt.Sprintf("Package: %s\nName: %s\nType: %s\nBaseType: %s\nMethods: %d\n", c.Package, c.Name, c.Type, c.Basetype, len(c.Methods))
+}
+
+func (m *Method) String() string {
+	return fmt.Sprintf("Name: %s\nPointerReceiver: %t\nReceiver: %s\nParameters: %v\nReturnValues: %v\n", m.Name, m.PointerReceiver, m.Receiver, m.Parameters, m.ReturnValues)
 }

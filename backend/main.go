@@ -1,6 +1,8 @@
 package main
 
 import (
+	"runtime"
+
 	"gitlab.com/sean.manierre/typer-site/parser"
 )
 
@@ -25,7 +27,17 @@ func main() {
 	// 	log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	// }
 	p := parser.NewParser()
-	err := p.ParseFile("C:\\Users\\Sean\\Projects\\typer-site\\backend\\parser\\parser.go")
+	windowsFile := "C:\\Users\\Sean\\Projects\\typer-site\\backend\\parser\\parser.go"
+	linuxFile := "/home/sean/Projects/typer-site/backend/parser/types.go"
+	var filePath string
+	if runtime.GOOS == "linux" {
+		filePath = linuxFile
+	} else if runtime.GOOS == "windows" {
+		filePath = windowsFile
+	} else {
+		panic("Please don't run my shitty code on a Mac :)")
+	}
+	err := p.ParseFile(filePath)
 	if err != nil {
 		panic(err)
 	}
