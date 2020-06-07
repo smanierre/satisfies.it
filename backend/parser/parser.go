@@ -10,7 +10,7 @@ import (
 //A Parser is a struct that contains all the extracted interfaces and custom types from a set of files.
 type Parser struct {
 	Types   []CustomType
-	methods []Method
+	Methods []Method
 	fs      *token.FileSet
 }
 
@@ -18,7 +18,7 @@ type Parser struct {
 func NewParser() *Parser {
 	return &Parser{
 		Types:   []CustomType{},
-		methods: []Method{},
+		Methods: []Method{},
 		fs:      token.NewFileSet(),
 	}
 }
@@ -32,7 +32,7 @@ func (p *Parser) ParseFile(filepath string) error {
 	tv := &typeVisitor{}
 	ast.Walk(tv, file)
 	p.Types = append(p.Types, tv.Types...)
-	p.methods = append(p.methods, tv.Methods...)
+	p.Methods = append(p.Methods, tv.Methods...)
 	return nil
 }
 

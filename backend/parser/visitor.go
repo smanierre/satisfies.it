@@ -95,6 +95,7 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					method.PointerReceiver = false
 					method.Receiver = fmt.Sprintf("%s.%s", file.Name.Name, ident.Name)
 				case *ast.StarExpr:
+					method.PointerReceiver = true
 					starExpr := funcDecl.Recv.List[0].Type.(*ast.StarExpr)
 					//Extract the name of the pointer value
 					switch starExpr.X.(type) {
@@ -110,19 +111,14 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 
 				//Resolve parameters of the method
 				for _, parameter := range funcDecl.Type.Params.List {
-					switch parameter.Type.(type) {
-					case *ast.Ident:
-						ident := parameter.Type.(*ast.Ident)
-						//If the type is exported, append package name in front of it.
-						if util.StartsWithUppercase(ident.Name) {
-							method.Parameters = append(method.Parameters, fmt.Sprintf("%s.%s", file.Name.Name, ident.Name))
-							continue
-						}
-						method.Parameters = append(method.Parameters, ident.Name)
-					default:
-						fmt.Printf("Unknown type when parsing method parameters: %T\n", parameter.Type)
-					}
+					method.Parameters = append(method.Parameters, parseParameter(parameter.Type, file.Name.Name))
 				}
+
+				//Resolve return values of the method
+				for _, value := range funcDecl.Type.Results.List {
+					method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+				}
+				tv.Methods = append(tv.Methods, method)
 			default:
 				fmt.Printf("Unknown Declaration type: %T\n", decl)
 			}
@@ -173,95 +169,77 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 		for _, field := range funcType.Params.List {
 			//A bold assumption is being made here. If the type is of *ast.Ident, meaning it is not from an external package, and
 			//has a lowercase name, then it is going to be assumed it's a builtin type. Otherwise, the package name will be prepended to the name.
-			switch field.Type.(type) {
-			case *ast.Ident:
-				ident := field.Type.(*ast.Ident)
-				if !util.StartsWithUppercase(ident.Name) {
-					//assuming builtin type here because otherwise external packages wouldn't be able to implement the function
-					m.Parameters = append(m.Parameters, ident.Name)
-					continue
-				}
-				m.Parameters = append(m.Parameters, fmt.Sprintf("%s.%s", packageName, ident.Name))
-			//Param is a from an external package, just add formatted name to m.Parameters slice
-			case *ast.SelectorExpr:
-				selectorExpr := field.Type.(*ast.SelectorExpr)
-				m.Parameters = append(m.Parameters, fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel))
-			default:
-				fmt.Printf("Unknown type when parsing interface method parameters: %T\n", field.Type)
-			}
+			m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
 		}
 
 		//Loop through each of the return values and add the type to the method.ReturnValues slice.
 		for _, value := range funcType.Results.List {
 			//The same assumtion is being made here as above about return values.
-			switch value.Type.(type) {
-			case *ast.Ident:
-				ident := value.Type.(*ast.Ident)
-				if !util.StartsWithUppercase(ident.Name) {
-					m.ReturnValues = append(m.ReturnValues, ident.Name)
-					continue
-				}
-				m.ReturnValues = append(m.ReturnValues, fmt.Sprintf("%s.%s", packageName, ident.Name))
-			case *ast.SelectorExpr:
-				selectorExpr := value.Type.(*ast.SelectorExpr)
-				m.ReturnValues = append(m.ReturnValues, fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel))
-			default:
-				fmt.Printf("Unknown type when parsing interface method return values: %T\n", value.Type)
-			}
+			m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
 		}
 		customType.Methods = append(customType.Methods, m)
 	}
 }
 
-type parameterBuilder string
+func parseParameter(node ast.Node, packageName string) string {
+	pb := &parameterBuilder{
+		paramString: "",
+		packageName: packageName,
+	}
+	pb.parseNode(node)
+	return pb.paramString
+}
 
-func (p *parameterBuilder) parseParameter(node ast.Node) {
+type parameterBuilder struct {
+	paramString string
+	packageName string
+}
+
+func (p *parameterBuilder) parseNode(node ast.Node) {
 	switch node.(type) {
 	case *ast.Field:
 		field := node.(*ast.Field)
-		p.parseParameter(field.Type)
+		p.parseNode(field.Type)
 	case *ast.SelectorExpr:
 		selectorExpr := node.(*ast.SelectorExpr)
-		*p += parameterBuilder(fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel))
+		p.paramString += fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
 	case *ast.ArrayType:
 		arrayType := node.(*ast.ArrayType)
-		*p += "[]"
-		p.parseParameter(arrayType.Elt)
+		p.paramString += "[]"
+		p.parseNode(arrayType.Elt)
 	case *ast.Ident:
-		//TODO: Update this logic to be like the others and assume it's builtin or append the package name
-		if !util.IsBuiltinType(fmt.Sprint(node)) {
-			p.astString += fmt.Sprintf("%s.%s", a.packageName, node)
+		ident := node.(*ast.Ident)
+		if util.StartsWithUppercase(ident.Name) {
+			p.paramString += fmt.Sprintf("%s.%s", p.packageName, ident.Name)
 		} else {
-			p.astString += fmt.Sprintf("%s", node)
+			p.paramString += fmt.Sprintf("%s", ident.Name)
 		}
 	case *ast.StarExpr:
 		starExpr := node.(*ast.StarExpr)
-		a.astString += "*"
-		a.parseAst(starExpr.X)
+		p.paramString += "*"
+		p.parseNode(starExpr.X)
 	case *ast.Ellipsis:
 		ellipsis := node.(*ast.Ellipsis)
-		a.astString += "..."
-		a.parseAst(ellipsis.Elt)
+		p.paramString += "..."
+		p.parseNode(ellipsis.Elt)
 	case *ast.InterfaceType:
 		interfaceType := node.(*ast.InterfaceType)
 		//TODO: implement recursive interface parsing, only handles empty interfaces for now
 		if len(interfaceType.Methods.List) == 0 {
-			a.astString += "interface{}"
+			p.paramString += "interface{}"
 		}
 	case *ast.FuncType:
 		funcType := node.(*ast.FuncType)
 		params := []string{}
 		for _, parameter := range funcType.Params.List {
-			param := astBuilder{packageName: a.packageName}
-			param.parseAst(parameter)
-			params = append(params, param.String())
+			param := parseParameter(parameter.Type, p.packageName)
+			params = append(params, param)
 		}
 		returnValues := []string{}
 		if funcType.Results != nil {
 			for _, returnValue := range funcType.Results.List {
-				result := astBuilder{packageName: a.packageName}
-				result.parseAst(returnValue)
-				returnValues = append(returnValues, result.String())
+				result := parseParameter(returnValue.Type, p.packageName)
+				returnValues = append(returnValues, result)
 			}
 		}
 		var paramsString string
@@ -281,35 +259,28 @@ func (p *parameterBuilder) parseParameter(node ast.Node) {
 			returnString = ""
 		}
 		//Trim space to get rid of trailing space if there are no return values
-		a.astString += strings.TrimSpace(fmt.Sprintf("func(%s) %s", paramsString, returnString))
+		p.paramString += strings.TrimSpace(fmt.Sprintf("func(%s) %s", paramsString, returnString))
 	case *ast.MapType:
 		mapType := node.(*ast.MapType)
-		keyString := astBuilder{packageName: a.packageName}
-		keyString.parseAst(mapType.Key)
-		valueString := astBuilder{packageName: a.packageName}
-		valueString.parseAst(mapType.Value)
-		a.astString += fmt.Sprintf("map[%s]%s", keyString, valueString)
+		keyString := parseParameter(mapType.Key, p.packageName)
+		valueString := parseParameter(mapType.Value, p.packageName)
+		p.paramString += fmt.Sprintf("map[%s]%s", keyString, valueString)
 	case *ast.ChanType:
 		chanType := node.(*ast.ChanType)
-		chanValue := astBuilder{packageName: a.packageName}
-		chanValue.parseAst(chanType.Value)
-		a.astString += fmt.Sprintf("chan %s\n", chanValue)
+		chanValue := parseParameter(chanType.Value, p.packageName)
+		p.paramString += fmt.Sprintf("chan %s\n", chanValue)
 	case *ast.StructType:
 		structType := node.(*ast.StructType)
 		//TODO: Implement recursive struct parsing
 		if len(structType.Fields.List) == 0 {
-			a.astString += "struct{}"
+			p.paramString += "struct{}"
 		}
 	case *ast.ParenExpr:
 		parenExpr := node.(*ast.ParenExpr)
-		a.astString += "("
-		a.parseAst(parenExpr.X)
-		a.astString += ")"
+		p.paramString += "("
+		p.parseNode(parenExpr.X)
+		p.paramString += ")"
 	default:
 		fmt.Printf("Uncaught type when parsing node: %T\n", node)
 	}
-}
-
-func (a astBuilder) String() string {
-	return string(a.astString)
 }

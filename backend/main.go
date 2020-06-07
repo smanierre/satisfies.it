@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
@@ -28,7 +29,7 @@ func main() {
 	// }
 	p := parser.NewParser()
 	windowsFile := "C:\\Go\\src\\net\\http\\http.go"
-	linuxFile := "/home/sean/Projects/typer-site/backend/parser/types.go"
+	linuxFile := "/usr/local/go/src/net/http/http.go"
 	var filePath string
 	if runtime.GOOS == "linux" {
 		filePath = linuxFile
@@ -40,5 +41,8 @@ func main() {
 	err := p.ParseFile(filePath)
 	if err != nil {
 		panic(err)
+	}
+	for _, method := range p.Methods {
+		fmt.Println(method.String())
 	}
 }
