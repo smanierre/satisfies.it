@@ -88,3 +88,43 @@ func TestGetFileName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTestFile(t *testing.T) {
+	tc := []struct {
+		Name     string
+		TestName string
+		Expected bool
+	}{
+		{"testfile", "parser_test.go", true},
+		{"non-testfile", "parser.go", false},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			if result := IsTestFile(tt.TestName); result != tt.Expected {
+				t.Errorf("Expected: %t for name %s. Got: %t\n", tt.Expected, tt.Name, result)
+			}
+		})
+	}
+}
+
+func TestIsGoFile(t *testing.T) {
+	tc := []struct {
+		Name     string
+		TestName string
+		Expected bool
+	}{
+		{"Go file", "file.go", true},
+		{"Non Go file", "file.cpp", false},
+		{"Multiple Extensions", "file.go.gz", false},
+		{"Multiple extensions before .go", "file.pb.go", true},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			if result := IsGoFile(tt.TestName); result != tt.Expected {
+				t.Errorf("Expected %t for name %s but got %t.\n", tt.Expected, tt.TestName, result)
+			}
+		})
+	}
+}

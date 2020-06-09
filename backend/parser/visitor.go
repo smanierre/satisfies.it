@@ -35,9 +35,14 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					switch spec.(type) {
 					case *ast.TypeSpec:
 						typeSpec := spec.(*ast.TypeSpec)
+						if !util.StartsWithUppercase(typeSpec.Name.Name) {
+							//Unexported type, skip it.
+							continue
+						}
 						customType := CustomType{}
 						customType.Package = file.Name.Name
 						customType.Name = typeSpec.Name.Name
+						customType.Methods = []Method{}
 						//Assume concrete type, if it is an interface, this will be overwritten later
 						customType.Type = ConcreteType
 						switch typeSpec.Type.(type) {
@@ -51,8 +56,6 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 						case *ast.StructType:
 							//Only thing to do is set the base type, the methods will be added later once the whole package is parsed.
 							customType.Basetype = "struct"
-							tv.Types = append(tv.Types, customType)
-							continue
 						case *ast.Ident:
 							ident := typeSpec.Type.(*ast.Ident)
 							//If ident starts with an uppercase, prepend the current package name.
@@ -62,16 +65,43 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 								continue
 							}
 							customType.Basetype = ident.Name
-							tv.Types = append(tv.Types, customType)
-							continue
 						case *ast.SelectorExpr:
 							selectorExpr := typeSpec.Type.(*ast.SelectorExpr)
 							customType.Basetype = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-							tv.Types = append(tv.Types, customType)
-							continue
+						case *ast.FuncType:
+							funcType := typeSpec.Type.(*ast.FuncType)
+							params, results := []string{}, []string{}
+
+							//Get list of parameters
+							if funcType.Params.List != nil {
+								for _, param := range funcType.Params.List {
+									params = append(params, parseParameter(param, file.Name.Name))
+								}
+							}
+
+							//Get list of return values
+							if funcType.Results != nil {
+								for _, result := range funcType.Results.List {
+									results = append(results, parseParameter(result, file.Name.Name))
+								}
+							}
+
+							resultString := ""
+
+							//If the amount of return values is more than one, format accordingly.
+							if len(results) > 1 {
+								resultString = fmt.Sprintf("(%s)", strings.Join(results, ", "))
+							} else if len(results) == 1 {
+								resultString = results[0]
+							}
+							//Trimspace to get rid of the extra space if there are no return values
+							customType.Basetype = strings.TrimSpace(fmt.Sprintf("func(%s) %s", strings.Join(params, ", "), resultString))
+						//TODO: Get the rest of the basetype parsing done.
 						default:
 							fmt.Printf("Unknown basetype: %T\n", typeSpec.Type)
 						}
+						tv.Types = append(tv.Types, customType)
+						continue
 					case *ast.ImportSpec, *ast.ValueSpec:
 						//Don't care about these, just continue.
 						continue
@@ -81,13 +111,25 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 				}
 			case *ast.FuncDecl:
 				funcDecl := decl.(*ast.FuncDecl)
+				if !util.StartsWithUppercase(funcDecl.Name.Name) {
+					//Unexported method, ignore it.
+					continue
+				}
 				if funcDecl.Recv == nil {
 					//Not attached to a type, skip it.
 					continue
 				}
 				method := Method{}
 				method.Name = funcDecl.Name.Name
+				method.Parameters = []string{}
+				method.ReturnValues = []string{}
 
+				if len(funcDecl.Recv.List) == 0 {
+					//This is most likely a test file with a line like "func ( /* receiver type */ ) f0() {}"
+					//such as in file $GoSrcDir/go/doc/testdata/issue17788.go
+					//since this is not a valid method, just continue
+					continue
+				}
 				//Resolve whether or not the receiver is a pointer and the name of it.
 				switch funcDecl.Recv.List[0].Type.(type) {
 				case *ast.Ident:
@@ -109,14 +151,24 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					fmt.Printf("Unknown receiver type when parsing function declaration receivers: %T\n", funcDecl.Recv.List[0].Type)
 				}
 
-				//Resolve parameters of the method
-				for _, parameter := range funcDecl.Type.Params.List {
-					method.Parameters = append(method.Parameters, parseParameter(parameter.Type, file.Name.Name))
+				//funcDecl.Type.Params.List is nil if there are no parameters
+				if funcDecl.Type.Params.List != nil {
+					//Resolve parameters of the method
+					for _, parameter := range funcDecl.Type.Params.List {
+						//If the length of names is more than one it represents the syntax func(a, b string), therefore the type needs to be
+						//appended multiple times.
+						for i := 0; i < len(parameter.Names); i++ {
+							method.Parameters = append(method.Parameters, parseParameter(parameter.Type, file.Name.Name))
+						}
+					}
 				}
 
-				//Resolve return values of the method
-				for _, value := range funcDecl.Type.Results.List {
-					method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+				//funcDecl.Type.Results is nil if there are no return values
+				if funcDecl.Type.Results != nil {
+					//Resolve return values of the method
+					for _, value := range funcDecl.Type.Results.List {
+						method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+					}
 				}
 				tv.Methods = append(tv.Methods, method)
 			default:
@@ -135,6 +187,8 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 		//Interface method so it can't be a pointer receiver
 		m.PointerReceiver = false
 		m.Receiver = ""
+		m.Parameters = []string{}
+		m.ReturnValues = []string{}
 
 		//Determine name of method, and if embedded interface, name accordingly for later processing.
 		if len(method.Names) > 0 {
@@ -165,17 +219,23 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 			panic("Method isn't an embedded interface or function, guess i'll die now.")
 		}
 
-		//Loop through each of the parameters and add the type to the method.Parameters slice.
-		for _, field := range funcType.Params.List {
-			//A bold assumption is being made here. If the type is of *ast.Ident, meaning it is not from an external package, and
-			//has a lowercase name, then it is going to be assumed it's a builtin type. Otherwise, the package name will be prepended to the name.
-			m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
+		//If there are no parameters, funcType.Params.List is nil
+		if funcType.Params.List != nil {
+			//Loop through each of the parameters and add the type to the method.Parameters slice.
+			for _, field := range funcType.Params.List {
+				//A bold assumption is being made here. If the type is of *ast.Ident, meaning it is not from an external package, and
+				//has a lowercase name, then it is going to be assumed it's a builtin type. Otherwise, the package name will be prepended to the name.
+				m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
+			}
 		}
 
-		//Loop through each of the return values and add the type to the method.ReturnValues slice.
-		for _, value := range funcType.Results.List {
-			//The same assumtion is being made here as above about return values.
-			m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
+		//If there are no return values, funcType.Results is nil
+		if funcType.Results != nil {
+			//Loop through each of the return values and add the type to the method.ReturnValues slice.
+			for _, value := range funcType.Results.List {
+				//The same assumtion is being made here as above about return values.
+				m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
+			}
 		}
 		customType.Methods = append(customType.Methods, m)
 	}
