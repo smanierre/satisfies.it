@@ -24,7 +24,6 @@ func TestParse(t *testing.T) {
 					Methods: []Method{
 						{
 							Name:            "MethodOne",
-							Package:         "testFiles",
 							Receiver:        "",
 							PointerReceiver: false,
 							Parameters:      []string{"string", "*io.Writer"},
@@ -32,7 +31,6 @@ func TestParse(t *testing.T) {
 						},
 						{
 							Name:            "MethodTwo",
-							Package:         "testFiles",
 							Receiver:        "",
 							PointerReceiver: false,
 							Parameters:      []string{},
@@ -40,7 +38,6 @@ func TestParse(t *testing.T) {
 						},
 						{
 							Name:            "MethodThree",
-							Package:         "testFiles",
 							Receiver:        "",
 							PointerReceiver: false,
 							Parameters:      []string{"string", "string"},
@@ -66,7 +63,6 @@ func TestParse(t *testing.T) {
 			ExpectedMethods: []Method{
 				{
 					Name:            "MethodOne",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ConcreteType",
 					PointerReceiver: false,
 					Parameters:      []string{"string", "*io.Writer"},
@@ -74,7 +70,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodTwo",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ConcreteType",
 					PointerReceiver: false,
 					Parameters:      []string{},
@@ -82,7 +77,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodThree",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ConcreteType",
 					PointerReceiver: false,
 					Parameters:      []string{"string", "string"},
@@ -90,7 +84,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodOne",
-					Package:         "testFiles",
 					Receiver:        "*testFiles.ConcreteCustom",
 					PointerReceiver: true,
 					Parameters:      []string{"string", "*io.Writer"},
@@ -98,7 +91,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodTwo",
-					Package:         "testFiles",
 					Receiver:        "*testFiles.ConcreteCustom",
 					PointerReceiver: true,
 					Parameters:      []string{},
@@ -106,7 +98,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodThree",
-					Package:         "testFiles",
 					Receiver:        "*testFiles.ConcreteCustom",
 					PointerReceiver: true,
 					Parameters:      []string{"string", "string"},
@@ -150,7 +141,6 @@ func TestParse(t *testing.T) {
 			ExpectedMethods: []Method{
 				{
 					Name:            "MethodOne",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ParamlessReceiver",
 					PointerReceiver: false,
 					Parameters:      []string{},
@@ -158,7 +148,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodTwo",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ParamReceiver",
 					PointerReceiver: false,
 					Parameters:      []string{},
@@ -166,7 +155,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodThree",
-					Package:         "testFiles",
 					Receiver:        "testFiles.ReturnReceiver",
 					PointerReceiver: false,
 					Parameters:      []string{},
@@ -174,7 +162,6 @@ func TestParse(t *testing.T) {
 				},
 				{
 					Name:            "MethodFour",
-					Package:         "testFiles",
 					Receiver:        "testFiles.BothReceiver",
 					PointerReceiver: false,
 					Parameters:      []string{},

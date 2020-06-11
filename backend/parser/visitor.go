@@ -68,7 +68,6 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					continue
 				}
 				method := Method{}
-				method.Package = file.Name.Name
 				method.Name = funcDecl.Name.Name
 				method.Parameters = []string{}
 				method.ReturnValues = []string{}
@@ -83,6 +82,10 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 				switch funcDecl.Recv.List[0].Type.(type) {
 				case *ast.Ident:
 					ident := funcDecl.Recv.List[0].Type.(*ast.Ident)
+					//If the receiver is unexported, ignore the method.
+					if !util.StartsWithUppercase(ident.Name) {
+						continue
+					}
 					method.PointerReceiver = false
 					method.Receiver = fmt.Sprintf("%s.%s", file.Name.Name, ident.Name)
 				case *ast.StarExpr:
@@ -92,6 +95,10 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					switch starExpr.X.(type) {
 					case *ast.Ident:
 						ident := starExpr.X.(*ast.Ident)
+						//If the receiver is undexported, ignore the method.
+						if !util.StartsWithUppercase(ident.Name) {
+							continue
+						}
 						method.Receiver = fmt.Sprintf("*%s.%s", file.Name.Name, ident.Name)
 					default:
 						fmt.Printf("Unknown type when parsing Method pointer receiver name: %T\n", starExpr.X)
@@ -131,7 +138,6 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageName string) {
 	for _, method := range iface.Methods.List {
 		m := Method{}
-		m.Package = packageName //Setting package name in case it's needed later, but as of now it doesn't get used for interface methods.
 		//Interface method so it can't be a pointer receiver
 		m.PointerReceiver = false
 		m.Receiver = ""
