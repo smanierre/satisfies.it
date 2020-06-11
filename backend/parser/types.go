@@ -27,6 +27,7 @@ type CustomType struct {
 
 //Method represents a Method of an interface or a concrete type.
 type Method struct {
+	Package         string
 	Name            string
 	PointerReceiver bool
 	Receiver        string

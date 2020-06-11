@@ -28,7 +28,7 @@ func main() {
 	// }
 	p := parser.NewParser()
 	windowsFile := "C:\\Go\\src"
-	linuxFile := "/usr/local/go/src/net/http/http.go"
+	linuxFile := "/usr/local/go/src"
 	var filePath string
 	if runtime.GOOS == "linux" {
 		filePath = linuxFile

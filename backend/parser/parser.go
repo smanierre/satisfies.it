@@ -55,5 +55,6 @@ func (p *Parser) ParseDir(dirpath string) error {
 	if err != nil {
 		return err
 	}
+	p.resolveMethods()
 	return nil
 }

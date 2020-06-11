@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"go/ast"
-	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/util"
 )
@@ -45,65 +44,14 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 						customType.Methods = []Method{}
 						//Assume concrete type, if it is an interface, this will be overwritten later
 						customType.Type = ConcreteType
-						switch typeSpec.Type.(type) {
-						case *ast.InterfaceType:
-							//Since handling interfaces will require parsing methods on the spot instead of resolving later,
-							//this is getting extracted into a different function for readability.
-							iface := typeSpec.Type.(*ast.InterfaceType)
-							parseInterface(&customType, iface, file.Name.Name)
-							tv.Types = append(tv.Types, customType)
-							continue
-						case *ast.StructType:
-							//Only thing to do is set the base type, the methods will be added later once the whole package is parsed.
-							customType.Basetype = "struct"
-						case *ast.Ident:
-							ident := typeSpec.Type.(*ast.Ident)
-							//If ident starts with an uppercase, prepend the current package name.
-							if util.StartsWithUppercase(ident.Name) {
-								customType.Basetype = fmt.Sprintf("%s.%s", file.Name.Name, ident.Name)
-								tv.Types = append(tv.Types, customType)
-								continue
-							}
-							customType.Basetype = ident.Name
-						case *ast.SelectorExpr:
-							selectorExpr := typeSpec.Type.(*ast.SelectorExpr)
-							customType.Basetype = fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-						case *ast.FuncType:
-							funcType := typeSpec.Type.(*ast.FuncType)
-							params, results := []string{}, []string{}
-
-							//Get list of parameters
-							if funcType.Params.List != nil {
-								for _, param := range funcType.Params.List {
-									params = append(params, parseParameter(param, file.Name.Name))
-								}
-							}
-
-							//Get list of return values
-							if funcType.Results != nil {
-								for _, result := range funcType.Results.List {
-									results = append(results, parseParameter(result, file.Name.Name))
-								}
-							}
-
-							resultString := ""
-
-							//If the amount of return values is more than one, format accordingly.
-							if len(results) > 1 {
-								resultString = fmt.Sprintf("(%s)", strings.Join(results, ", "))
-							} else if len(results) == 1 {
-								resultString = results[0]
-							}
-							//Trimspace to get rid of the extra space if there are no return values
-							customType.Basetype = strings.TrimSpace(fmt.Sprintf("func(%s) %s", strings.Join(params, ", "), resultString))
-						//TODO: Get the rest of the basetype parsing done.
-						default:
-							fmt.Printf("Unknown basetype: %T\n", typeSpec.Type)
+						setBaseType(typeSpec.Type, file.Name.Name, &customType)
+						if customType.Basetype == "interface" {
+							parseInterface(&customType, typeSpec.Type.(*ast.InterfaceType), file.Name.Name)
 						}
 						tv.Types = append(tv.Types, customType)
 						continue
 					case *ast.ImportSpec, *ast.ValueSpec:
-						//Don't care about these, just continue.
+						//Don't care about imports or variable/const declarations. Just continue.
 						continue
 					default:
 						fmt.Printf("Unknown spec type: %T\n", spec)
@@ -120,6 +68,7 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					continue
 				}
 				method := Method{}
+				method.Package = file.Name.Name
 				method.Name = funcDecl.Name.Name
 				method.Parameters = []string{}
 				method.ReturnValues = []string{}
@@ -180,10 +129,9 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageName string) {
-	customType.Type = Interface
-	customType.Basetype = "interface"
 	for _, method := range iface.Methods.List {
 		m := Method{}
+		m.Package = packageName //Setting package name in case it's needed later, but as of now it doesn't get used for interface methods.
 		//Interface method so it can't be a pointer receiver
 		m.PointerReceiver = false
 		m.Receiver = ""
@@ -238,109 +186,5 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 			}
 		}
 		customType.Methods = append(customType.Methods, m)
-	}
-}
-
-func parseParameter(node ast.Node, packageName string) string {
-	pb := &parameterBuilder{
-		paramString: "",
-		packageName: packageName,
-	}
-	pb.parseNode(node)
-	return pb.paramString
-}
-
-type parameterBuilder struct {
-	paramString string
-	packageName string
-}
-
-func (p *parameterBuilder) parseNode(node ast.Node) {
-	switch node.(type) {
-	case *ast.Field:
-		field := node.(*ast.Field)
-		p.parseNode(field.Type)
-	case *ast.SelectorExpr:
-		selectorExpr := node.(*ast.SelectorExpr)
-		p.paramString += fmt.Sprintf("%s.%s", selectorExpr.X, selectorExpr.Sel)
-	case *ast.ArrayType:
-		arrayType := node.(*ast.ArrayType)
-		p.paramString += "[]"
-		p.parseNode(arrayType.Elt)
-	case *ast.Ident:
-		ident := node.(*ast.Ident)
-		if util.StartsWithUppercase(ident.Name) {
-			p.paramString += fmt.Sprintf("%s.%s", p.packageName, ident.Name)
-		} else {
-			p.paramString += fmt.Sprintf("%s", ident.Name)
-		}
-	case *ast.StarExpr:
-		starExpr := node.(*ast.StarExpr)
-		p.paramString += "*"
-		p.parseNode(starExpr.X)
-	case *ast.Ellipsis:
-		ellipsis := node.(*ast.Ellipsis)
-		p.paramString += "..."
-		p.parseNode(ellipsis.Elt)
-	case *ast.InterfaceType:
-		interfaceType := node.(*ast.InterfaceType)
-		//TODO: implement recursive interface parsing, only handles empty interfaces for now
-		if len(interfaceType.Methods.List) == 0 {
-			p.paramString += "interface{}"
-		}
-	case *ast.FuncType:
-		funcType := node.(*ast.FuncType)
-		params := []string{}
-		for _, parameter := range funcType.Params.List {
-			param := parseParameter(parameter.Type, p.packageName)
-			params = append(params, param)
-		}
-		returnValues := []string{}
-		if funcType.Results != nil {
-			for _, returnValue := range funcType.Results.List {
-				result := parseParameter(returnValue.Type, p.packageName)
-				returnValues = append(returnValues, result)
-			}
-		}
-		var paramsString string
-		if len(params) > 1 {
-			paramsString = strings.Join(params, ", ")
-		} else if len(params) == 1 {
-			paramsString = params[0]
-		} else {
-			paramsString = ""
-		}
-		var returnString string
-		if len(returnValues) > 1 {
-			returnString = fmt.Sprintf("(%s)", strings.Join(returnValues, ", "))
-		} else if len(returnValues) == 1 {
-			returnString = returnValues[0]
-		} else {
-			returnString = ""
-		}
-		//Trim space to get rid of trailing space if there are no return values
-		p.paramString += strings.TrimSpace(fmt.Sprintf("func(%s) %s", paramsString, returnString))
-	case *ast.MapType:
-		mapType := node.(*ast.MapType)
-		keyString := parseParameter(mapType.Key, p.packageName)
-		valueString := parseParameter(mapType.Value, p.packageName)
-		p.paramString += fmt.Sprintf("map[%s]%s", keyString, valueString)
-	case *ast.ChanType:
-		chanType := node.(*ast.ChanType)
-		chanValue := parseParameter(chanType.Value, p.packageName)
-		p.paramString += fmt.Sprintf("chan %s\n", chanValue)
-	case *ast.StructType:
-		structType := node.(*ast.StructType)
-		//TODO: Implement recursive struct parsing
-		if len(structType.Fields.List) == 0 {
-			p.paramString += "struct{}"
-		}
-	case *ast.ParenExpr:
-		parenExpr := node.(*ast.ParenExpr)
-		p.paramString += "("
-		p.parseNode(parenExpr.X)
-		p.paramString += ")"
-	default:
-		fmt.Printf("Uncaught type when parsing node: %T\n", node)
 	}
 }
