@@ -41,7 +41,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// for _, method := range p.Methods {
-	// 	fmt.Println(method.String())
-	// }
 }

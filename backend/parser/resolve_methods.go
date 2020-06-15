@@ -35,9 +35,3 @@ func (p *Parser) resolveMethods() {
 	//Set p.Methods to the remaining slice which represents any methods that haven't been resolved to a CustomType
 	p.Methods = remaining
 }
-
-func removeMethod(methods []Method, i int) []Method {
-	copy(methods[i:], methods[i+1:])
-	methods = methods[:len(methods)-1]
-	return methods
-}
