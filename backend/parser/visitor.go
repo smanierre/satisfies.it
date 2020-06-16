@@ -113,8 +113,13 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 					for _, parameter := range funcDecl.Type.Params.List {
 						//If the length of names is more than one it represents the syntax func(a, b string), therefore the type needs to be
 						//appended multiple times.
-						for i := 0; i < len(parameter.Names); i++ {
+						if len(parameter.Names) == 0 {
+							//If there are no names, then there is only one of the parameter.
 							method.Parameters = append(method.Parameters, parseParameter(parameter.Type, file.Name.Name))
+						} else {
+							for range parameter.Names {
+								method.Parameters = append(method.Parameters, parseParameter(parameter.Type, file.Name.Name))
+							}
 						}
 					}
 				}
@@ -123,7 +128,14 @@ func (tv *typeVisitor) Visit(node ast.Node) ast.Visitor {
 				if funcDecl.Type.Results != nil {
 					//Resolve return values of the method
 					for _, value := range funcDecl.Type.Results.List {
-						method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+						if len(value.Names) == 0 {
+							//If there are no names, then there is only one of the parameter.
+							method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+						} else {
+							for range value.Names {
+								method.ReturnValues = append(method.ReturnValues, parseParameter(value.Type, file.Name.Name))
+							}
+						}
 					}
 				}
 				tv.Methods = append(tv.Methods, method)
@@ -179,7 +191,15 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 			for _, field := range funcType.Params.List {
 				//A bold assumption is being made here. If the type is of *ast.Ident, meaning it is not from an external package, and
 				//has a lowercase name, then it is going to be assumed it's a builtin type. Otherwise, the package name will be prepended to the name.
-				m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
+				if len(field.Names) == 0 {
+					//If there are no names, then there is only one of the parameter.
+					m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
+				} else {
+					for range field.Names {
+						//Each name represents a parameter within the func(a,b string) syntax
+						m.Parameters = append(m.Parameters, parseParameter(field.Type, packageName))
+					}
+				}
 			}
 		}
 
@@ -188,7 +208,14 @@ func parseInterface(customType *CustomType, iface *ast.InterfaceType, packageNam
 			//Loop through each of the return values and add the type to the method.ReturnValues slice.
 			for _, value := range funcType.Results.List {
 				//The same assumtion is being made here as above about return values.
-				m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
+				if len(value.Names) == 0 {
+					//If there are no names, then there is only one of the return value.
+					m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
+				}
+				for range value.Names {
+					//Each name represents a return value within the func() (a, b int) syntax
+					m.ReturnValues = append(m.ReturnValues, parseParameter(value.Type, packageName))
+				}
 			}
 		}
 		customType.Methods = append(customType.Methods, m)

@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/smanierre/typer-site/typeparser"
 )
 
 //Only use this to create and export a database to be loaded into the production system. For loading in production use LoadDB()

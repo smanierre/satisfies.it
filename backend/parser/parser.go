@@ -1,28 +1,32 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gitlab.com/sean.manierre/typer-site/util"
 )
 
 //A Parser is a struct that contains all the extracted interfaces and custom types from a set of files.
 type Parser struct {
-	Types   []CustomType
-	Methods []Method
-	fs      *token.FileSet
+	Types                 []CustomType
+	methods               []Method
+	interfaceImplementers map[CustomType][]CustomType
+	typeImplementees      map[CustomType][]CustomType
+	fs                    *token.FileSet
 }
 
 //NewParser returns a new Parser.
 func NewParser() *Parser {
 	return &Parser{
 		Types:   []CustomType{},
-		Methods: []Method{},
+		methods: []Method{},
 		fs:      token.NewFileSet(),
 	}
 }
@@ -37,6 +41,7 @@ func (p *Parser) ParseFile(filepath string) error {
 	ast.Walk(tv, file)
 	p.Types = append(p.Types, tv.Types...)
 	p.Methods = append(p.Methods, tv.Methods...)
+	p.resolveMethods()
 	return nil
 }
 
@@ -55,6 +60,27 @@ func (p *Parser) ParseDir(dirpath string) error {
 	if err != nil {
 		return err
 	}
-	p.resolveMethods()
+	// p.resolveMethods()
+	return nil
+}
+
+//ParseAndExportDirectory takes in a directory path and parses all the .go files within it and its children. Once it is done parsing,
+// it then outputs it as types_timestamp.json to be imported once the application is deployed and connected to the db.
+func ParseAndExportDirectory(dirPath string) error {
+	p := NewParser()
+	if err := p.ParseDir(dirPath); err != nil {
+		return err
+	}
+	filename := fmt.Sprintf("types_%s.json", time.Now().Format(time.RFC3339))
+	outFile, err := os.Create(filename)
+	defer outFile.Close()
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(outFile)
+	encoder.SetIndent("", "\t")
+	if err := encoder.Encode(p.Types); err != nil {
+		return err
+	}
 	return nil
 }

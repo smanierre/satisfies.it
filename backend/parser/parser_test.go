@@ -1,16 +1,16 @@
 package parser
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
 	tc := []struct {
-		Name            string
-		Filepath        string
-		ExpectedTypes   []CustomType
-		ExpectedMethods []Method
+		Name          string
+		Filepath      string
+		ExpectedTypes []CustomType
 	}{
 		{
 			Name:     "Testfile",
@@ -50,58 +50,58 @@ func TestParse(t *testing.T) {
 					Basetype: "struct",
 					Type:     ConcreteType,
 					Package:  "testFiles",
-					Methods:  []Method{},
+					Methods: []Method{
+						{
+							Name:            "MethodOne",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ConcreteType",
+							Parameters:      []string{"string", "*io.Writer"},
+							ReturnValues:    []string{},
+						},
+						{
+							Name:            "MethodTwo",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ConcreteType",
+							Parameters:      []string{},
+							ReturnValues:    []string{"int"},
+						},
+						{
+							Name:            "MethodThree",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ConcreteType",
+							Parameters:      []string{"string", "string"},
+							ReturnValues:    []string{"*interface{}", "error"},
+						},
+					},
 				},
 				{
 					Name:     "ConcreteCustom",
 					Basetype: "int",
 					Type:     ConcreteType,
 					Package:  "testFiles",
-					Methods:  []Method{},
-				},
-			},
-			ExpectedMethods: []Method{
-				{
-					Name:            "MethodOne",
-					Receiver:        "testFiles.ConcreteType",
-					PointerReceiver: false,
-					Parameters:      []string{"string", "*io.Writer"},
-					ReturnValues:    []string{},
-				},
-				{
-					Name:            "MethodTwo",
-					Receiver:        "testFiles.ConcreteType",
-					PointerReceiver: false,
-					Parameters:      []string{},
-					ReturnValues:    []string{"int"},
-				},
-				{
-					Name:            "MethodThree",
-					Receiver:        "testFiles.ConcreteType",
-					PointerReceiver: false,
-					Parameters:      []string{"string", "string"},
-					ReturnValues:    []string{"*interface{}", "error"},
-				},
-				{
-					Name:            "MethodOne",
-					Receiver:        "*testFiles.ConcreteCustom",
-					PointerReceiver: true,
-					Parameters:      []string{"string", "*io.Writer"},
-					ReturnValues:    []string{},
-				},
-				{
-					Name:            "MethodTwo",
-					Receiver:        "*testFiles.ConcreteCustom",
-					PointerReceiver: true,
-					Parameters:      []string{},
-					ReturnValues:    []string{"int"},
-				},
-				{
-					Name:            "MethodThree",
-					Receiver:        "*testFiles.ConcreteCustom",
-					PointerReceiver: true,
-					Parameters:      []string{"string", "string"},
-					ReturnValues:    []string{"*interface{}", "error"},
+					Methods: []Method{
+						{
+							Name:            "MethodOne",
+							PointerReceiver: true,
+							Receiver:        "*testFiles.ConcreteCustom",
+							Parameters:      []string{"string", "*io.Writer"},
+							ReturnValues:    []string{},
+						},
+						{
+							Name:            "MethodTwo",
+							PointerReceiver: true,
+							Receiver:        "*testFiles.ConcreteCustom",
+							Parameters:      []string{},
+							ReturnValues:    []string{"int"},
+						},
+						{
+							Name:            "MethodThree",
+							PointerReceiver: true,
+							Receiver:        "*testFiles.ConcreteCustom",
+							Parameters:      []string{"string", "string"},
+							ReturnValues:    []string{"*interface{}", "error"},
+						},
+					},
 				},
 			},
 		},
@@ -114,58 +114,96 @@ func TestParse(t *testing.T) {
 					Package:  "testFiles",
 					Basetype: "func()",
 					Type:     ConcreteType,
-					Methods:  []Method{},
+					Methods: []Method{
+						{
+							Name:            "MethodOne",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ParamlessReceiver",
+							Parameters:      []string{},
+							ReturnValues:    []string{},
+						},
+					},
 				},
 				{
 					Name:     "ParamReceiver",
 					Package:  "testFiles",
 					Basetype: "func(int, string)",
 					Type:     ConcreteType,
-					Methods:  []Method{},
+					Methods: []Method{
+						{
+							Name:            "MethodTwo",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ParamReceiver",
+							Parameters:      []string{},
+							ReturnValues:    []string{},
+						},
+					},
 				},
 				{
 					Name:     "ReturnReceiver",
 					Package:  "testFiles",
 					Basetype: "func() (int, error)",
 					Type:     ConcreteType,
-					Methods:  []Method{},
+					Methods: []Method{
+						{
+							Name:            "MethodThree",
+							PointerReceiver: false,
+							Receiver:        "testFiles.ReturnReceiver",
+							Parameters:      []string{},
+							ReturnValues:    []string{},
+						},
+					},
 				},
 				{
 					Name:     "BothReceiver",
 					Package:  "testFiles",
 					Basetype: "func(int, string) (io.Writer, error)",
 					Type:     ConcreteType,
-					Methods:  []Method{},
+					Methods: []Method{
+						{
+							Name:            "MethodFour",
+							PointerReceiver: false,
+							Receiver:        "testFiles.BothReceiver",
+							Parameters:      []string{},
+							ReturnValues:    []string{},
+						},
+					},
 				},
 			},
-			ExpectedMethods: []Method{
+		},
+		{
+			Name:     "Multiple return values of same type",
+			Filepath: "../testFiles/multipleReturnValues.go",
+			ExpectedTypes: []CustomType{
 				{
-					Name:            "MethodOne",
-					Receiver:        "testFiles.ParamlessReceiver",
-					PointerReceiver: false,
-					Parameters:      []string{},
-					ReturnValues:    []string{},
+					Name:     "TestType",
+					Basetype: "interface",
+					Type:     Interface,
+					Package:  "testFiles",
+					Methods: []Method{
+						{
+							Name:            "MethodOne",
+							PointerReceiver: false,
+							Receiver:        "",
+							Parameters:      []string{},
+							ReturnValues:    []string{"int", "int", "error"},
+						},
+					},
 				},
 				{
-					Name:            "MethodTwo",
-					Receiver:        "testFiles.ParamReceiver",
-					PointerReceiver: false,
-					Parameters:      []string{},
-					ReturnValues:    []string{},
-				},
-				{
-					Name:            "MethodThree",
-					Receiver:        "testFiles.ReturnReceiver",
-					PointerReceiver: false,
-					Parameters:      []string{},
-					ReturnValues:    []string{},
-				},
-				{
-					Name:            "MethodFour",
-					Receiver:        "testFiles.BothReceiver",
-					PointerReceiver: false,
-					Parameters:      []string{},
-					ReturnValues:    []string{},
+					Name:     "TestConcrete",
+					Basetype: "struct",
+					Type:     ConcreteType,
+					Package:  "testFiles",
+					Methods: []Method{
+						{
+							Name:            "MethodTwo",
+							PointerReceiver: false,
+							Receiver:        "testFiles.TestConcrete",
+							Parameters:      []string{},
+							ReturnValues:    []string{"int", "error", "error"},
+						},
+					},
 				},
 			},
 		},
@@ -176,10 +214,13 @@ func TestParse(t *testing.T) {
 			p := NewParser()
 			p.ParseFile(tt.Filepath)
 			if !reflect.DeepEqual(p.Types, tt.ExpectedTypes) {
+				for _, Type := range p.Types {
+					fmt.Println(Type.Name)
+					for _, Method := range Type.Methods {
+						fmt.Printf("%+v\n", Method)
+					}
+				}
 				t.Errorf("Expected types: %+v\nGot types: %+v\n", tt.ExpectedTypes, p.Types)
-			}
-			if !reflect.DeepEqual(p.Methods, tt.ExpectedMethods) {
-				t.Errorf("Expected methods: %+v\nGot methods: %+v\n", tt.ExpectedMethods, p.Methods)
 			}
 		})
 	}

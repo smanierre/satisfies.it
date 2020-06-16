@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/smanierre/typer-site/model"
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){

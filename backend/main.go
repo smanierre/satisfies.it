@@ -26,7 +26,7 @@ func main() {
 	// 	s := server.NewServer(store)
 	// 	log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	// }
-	p := parser.NewParser()
+	// p := parser.NewParser()
 	windowsFile := "C:\\Go\\src"
 	linuxFile := "/usr/local/go/src"
 	var filePath string
@@ -37,7 +37,11 @@ func main() {
 	} else {
 		panic("Please don't run my shitty code on a Mac :)")
 	}
-	err := p.ParseDir(filePath)
+	// err := p.ParseDir(filePath)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	err := parser.ParseAndExportDirectory(filePath)
 	if err != nil {
 		panic(err)
 	}

@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/smanierre/typer-site/store"
+	"gitlab.com/sean.manierre/typer-site/store"
 )
 
 // Server uses the DefaultServeMux and provides a store for endpoints to access
