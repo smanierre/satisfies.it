@@ -6,7 +6,7 @@ import (
 
 func (p *Parser) resolveMethods() {
 	var remaining []Method
-	for j, m := range p.Methods {
+	for j, m := range p.methods {
 		//Keep track of whether or not the method has been resolved to a CustomType
 		resolved := false
 		if m.Receiver == "" {
@@ -22,16 +22,16 @@ func (p *Parser) resolveMethods() {
 		for i, t := range p.Types {
 			if m.Receiver == fmt.Sprintf("%s.%s", t.Package, t.Name) {
 				//If the method belongs to a CustomType add it to the type and mark it as resolved.
-				p.Types[i].Methods = append(p.Types[i].Methods, p.Methods[j])
+				p.Types[i].Methods = append(p.Types[i].Methods, p.methods[j])
 				resolved = true
 				break
 			}
 		}
 		if !resolved {
 			//If the method was not resolved to a CustomType, then add it to the remaining slice
-			remaining = append(remaining, p.Methods[j])
+			remaining = append(remaining, p.methods[j])
 		}
 	}
 	//Set p.Methods to the remaining slice which represents any methods that haven't been resolved to a CustomType
-	p.Methods = remaining
+	p.methods = remaining
 }

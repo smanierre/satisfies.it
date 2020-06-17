@@ -15,19 +15,21 @@ import (
 
 //A Parser is a struct that contains all the extracted interfaces and custom types from a set of files.
 type Parser struct {
-	Types                 []CustomType
+	Types                 []CustomType `json:"types"`
 	methods               []Method
-	interfaceImplementers map[CustomType][]CustomType
-	typeImplementees      map[CustomType][]CustomType
+	InterfaceImplementers map[string][]CustomType `json:"interface_implementers"`
+	TypeImplementees      map[string][]CustomType `json:"type_implementees"`
 	fs                    *token.FileSet
 }
 
 //NewParser returns a new Parser.
 func NewParser() *Parser {
 	return &Parser{
-		Types:   []CustomType{},
-		methods: []Method{},
-		fs:      token.NewFileSet(),
+		Types:                 []CustomType{},
+		methods:               []Method{},
+		InterfaceImplementers: map[string][]CustomType{},
+		TypeImplementees:      map[string][]CustomType{},
+		fs:                    token.NewFileSet(),
 	}
 }
 
@@ -40,7 +42,7 @@ func (p *Parser) ParseFile(filepath string) error {
 	tv := &typeVisitor{}
 	ast.Walk(tv, file)
 	p.Types = append(p.Types, tv.Types...)
-	p.Methods = append(p.Methods, tv.Methods...)
+	p.methods = append(p.methods, tv.Methods...)
 	p.resolveMethods()
 	return nil
 }
@@ -60,7 +62,7 @@ func (p *Parser) ParseDir(dirpath string) error {
 	if err != nil {
 		return err
 	}
-	// p.resolveMethods()
+
 	return nil
 }
 
@@ -71,6 +73,7 @@ func ParseAndExportDirectory(dirPath string) error {
 	if err := p.ParseDir(dirPath); err != nil {
 		return err
 	}
+	p.ResolveImplementations()
 	filename := fmt.Sprintf("types_%s.json", time.Now().Format(time.RFC3339))
 	outFile, err := os.Create(filename)
 	defer outFile.Close()
@@ -79,7 +82,7 @@ func ParseAndExportDirectory(dirPath string) error {
 	}
 	encoder := json.NewEncoder(outFile)
 	encoder.SetIndent("", "\t")
-	if err := encoder.Encode(p.Types); err != nil {
+	if err := encoder.Encode(p); err != nil {
 		return err
 	}
 	return nil
