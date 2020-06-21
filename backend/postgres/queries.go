@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"database/sql"
+<<<<<<< HEAD
 	"errors"
+=======
+>>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
 
 	"gitlab.com/sean.manierre/typer-site/parser"
 )
@@ -46,9 +49,13 @@ const (
 
 	insertTypeImplementeeQuery        = "INSERT INTO TYPE_IMPLEMENTEES(type_name, implementees) values($1, $2) RETURNING id;"
 	selectAllTypeImplementeesQuery    = "SELECT * FROM TYPE_IMPLEMENTEES;"
+<<<<<<< HEAD
 	selectTypeImplementeesByNameQuery = "SELECT * FROM TYPE_IMPLEMENTEES WHERE TYPE_NAME=$1;"
 
 	createDatabaseQuery = "CREATE DATABASE types;"
+=======
+	selectTypeImplementeesByNameQuery = "SELECT * FROM TYPE_IMPLEMENTEES WHERE NAME=$1;"
+>>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
 )
 
 var (
@@ -129,6 +136,7 @@ func prepareStatements() error {
 	return nil
 }
 
+<<<<<<< HEAD
 func dropTables() error {
 	_, err := db.Exec("DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
 	if err != nil {
@@ -197,5 +205,12 @@ func createDBStructure() error {
 	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS TYPE_IMPLEMENTEES (ID serial PRIMARY KEY, TYPE_NAME VARCHAR(255), IMPLEMENTEES INTEGER[]);")
+=======
+func dropTables() {
+	db.Exec("DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
+	db.Exec("DROP TABLE IF EXISTS public.METHODS;")
+	db.Exec("DROP TABLE IF EXISTS public.INTERFACE_IMPLEMENTERS CASCADE;")
+	db.Exec("DROP TABLE IF EXISTS public.TYPE_IMPLEMENTEES CASCADE;")
+>>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
 	return nil
 }
