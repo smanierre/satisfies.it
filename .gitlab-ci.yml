@@ -10,6 +10,7 @@ build-frontend:
   image: node:13.4.0
   stage: build-front
   script:
+    - npm install --prefix frontend
     - npm run build --prefix frontend
     - cp -r frontend/build/* backend/static
   artifacts:
