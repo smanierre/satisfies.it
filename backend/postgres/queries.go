@@ -2,34 +2,37 @@ package postgres
 
 import (
 	"database/sql"
-<<<<<<< HEAD
 	"errors"
-=======
->>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
+	"fmt"
 
+	"github.com/lib/pq"
 	"gitlab.com/sean.manierre/typer-site/parser"
 )
 
-type customTypeRecord struct {
-	ID int64
-	CT parser.CustomType
+//CustomTypeRecord is a wrapper around parser.CustomType and includes a field for the id assigned by the database.
+type CustomTypeRecord struct {
+	ID int64             `json:"id"`
+	CT parser.CustomType `json:"type"`
 }
 
-type methodRecord struct {
-	ID int64
-	M  parser.Method
+//MethodRecord is a wrapper around parser.Method and includes a field for the id assigned by the database.
+type MethodRecord struct {
+	ID int64         `json:"id"`
+	M  parser.Method `json:"method"`
 }
 
-type interfaceImplementersRecord struct {
-	ID            int64
-	InterfaceName string
-	Implementers  []parser.CustomType
+//InterfaceImplementersRecord contains the ID of an interface and a slice of all the IDs of the implementing types.
+type InterfaceImplementersRecord struct {
+	ID            int64   `json:"id"`
+	InterfaceName string  `json:"interface_name"`
+	Implementers  []int64 `json:"implementers"`
 }
 
-type typeImplementeesRecord struct {
-	ID           int64
-	TypeName     string
-	Implementees []parser.CustomType
+//TypeImplementeesRecord contains the ID of a concrete type and a slice of all the IDs of the interfaces it implements.
+type TypeImplementeesRecord struct {
+	ID           int64   `json:"id"`
+	TypeName     string  `json:"type_name"`
+	Implementees []int64 `json:"implementees"`
 }
 
 const (
@@ -49,13 +52,9 @@ const (
 
 	insertTypeImplementeeQuery        = "INSERT INTO TYPE_IMPLEMENTEES(type_name, implementees) values($1, $2) RETURNING id;"
 	selectAllTypeImplementeesQuery    = "SELECT * FROM TYPE_IMPLEMENTEES;"
-<<<<<<< HEAD
 	selectTypeImplementeesByNameQuery = "SELECT * FROM TYPE_IMPLEMENTEES WHERE TYPE_NAME=$1;"
 
 	createDatabaseQuery = "CREATE DATABASE types;"
-=======
-	selectTypeImplementeesByNameQuery = "SELECT * FROM TYPE_IMPLEMENTEES WHERE NAME=$1;"
->>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
 )
 
 var (
@@ -64,7 +63,7 @@ var (
 	selectCustomTypeByIDStatement              *sql.Stmt
 	selectCustomTypeByNameStatement            *sql.Stmt
 	insertMethodStatement                      *sql.Stmt
-	selectedAllMethodStatement                 *sql.Stmt
+	selectAllMethodStatement                   *sql.Stmt
 	selectMethodByIDStatement                  *sql.Stmt
 	selectMethodByNameStatement                *sql.Stmt
 	insertInterfaceImplementersStatement       *sql.Stmt
@@ -97,7 +96,7 @@ func prepareStatements() error {
 	if err != nil {
 		return err
 	}
-	selectedAllMethodStatement, err = db.Prepare(selectAllMethodQuery)
+	selectAllMethodStatement, err = db.Prepare(selectAllMethodQuery)
 	if err != nil {
 		return err
 	}
@@ -136,7 +135,6 @@ func prepareStatements() error {
 	return nil
 }
 
-<<<<<<< HEAD
 func dropTables() error {
 	_, err := db.Exec("DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
 	if err != nil {
@@ -205,12 +203,94 @@ func createDBStructure() error {
 	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS TYPE_IMPLEMENTEES (ID serial PRIMARY KEY, TYPE_NAME VARCHAR(255), IMPLEMENTEES INTEGER[]);")
-=======
-func dropTables() {
-	db.Exec("DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
-	db.Exec("DROP TABLE IF EXISTS public.METHODS;")
-	db.Exec("DROP TABLE IF EXISTS public.INTERFACE_IMPLEMENTERS CASCADE;")
-	db.Exec("DROP TABLE IF EXISTS public.TYPE_IMPLEMENTEES CASCADE;")
->>>>>>> 393aa0287061df8cfbd62ece5571e7b7a53f1c0e
 	return nil
+}
+
+//GetCustomTypes returns all the custom types from the database.
+func GetCustomTypes() ([]CustomTypeRecord, error) {
+	rows, err := selectAllCustomTypeStatement.Query()
+	if err != nil {
+		return nil, fmt.Errorf("error when executing selectAllCustomTypeStatement: %s", err.Error())
+	}
+	types := []CustomTypeRecord{}
+	for rows.Next() {
+		var ct CustomTypeRecord
+		var methodIDs []int64
+		err = rows.Scan(&ct.ID, &ct.CT.Package, &ct.CT.Name, &ct.CT.Type, &ct.CT.Basetype, pq.Array(&methodIDs))
+		if err != nil {
+			return nil, fmt.Errorf("error scanning CustomTypeRecord into struct: %s", err.Error())
+		}
+		for _, id := range methodIDs {
+			mr, err := getMethodByID(id)
+			if err != nil {
+				return nil, err
+			}
+			ct.CT.Methods = append(ct.CT.Methods, mr.M)
+		}
+		types = append(types, ct)
+	}
+	return types, nil
+}
+
+func getMethodByID(id int64) (MethodRecord, error) {
+	row := selectMethodByIDStatement.QueryRow(id)
+	var mr MethodRecord
+	if err := row.Scan(&mr.ID, &mr.M.Name, &mr.M.PointerReceiver, &mr.M.Receiver, pq.Array(&mr.M.Parameters), pq.Array(&mr.M.ReturnValues)); err != nil {
+		return MethodRecord{}, fmt.Errorf("error when scanning method retreived by id into struct: %s", err.Error())
+	}
+	return mr, nil
+}
+
+//GetMethods returns all the methods from the database.
+func GetMethods() ([]MethodRecord, error) {
+	rows, err := selectAllMethodStatement.Query()
+	if err != nil {
+		return nil, err
+	}
+	methods := []MethodRecord{}
+	for rows.Next() {
+		var m MethodRecord
+		err = rows.Scan(&m)
+		if err != nil {
+			return nil, fmt.Errorf("error when scanning method into struct: %s", err.Error())
+		}
+		methods = append(methods, m)
+	}
+	return methods, nil
+}
+
+//GetInterfaceImplementers returns a list of the IDs of all the interfaces along with the IDs of the types that implement them.
+func GetInterfaceImplementers() ([]InterfaceImplementersRecord, error) {
+	rows, err := selectAllInterfaceImplementersStatement.Query()
+	if err != nil {
+		return nil, err
+	}
+	ii := []InterfaceImplementersRecord{}
+	for rows.Next() {
+		var i InterfaceImplementersRecord
+		err = rows.Scan(&i.ID, &i.InterfaceName, pq.Array(&i.Implementers))
+		if err != nil {
+			return nil, fmt.Errorf("error when scanning InterfaceImplementers into struct: %s", err.Error())
+		}
+		ii = append(ii, i)
+	}
+	return ii, nil
+}
+
+//GetTypeImplementees returns a list of the IDs of all the types along with the IDs of all the interfaces that they implement.
+func GetTypeImplementees() ([]TypeImplementeesRecord, error) {
+	rows, err := selectAllTypeImplementeesStatement.Query()
+	if err != nil {
+		return nil, err
+	}
+	ti := []TypeImplementeesRecord{}
+	for rows.Next() {
+		var t TypeImplementeesRecord
+		err = rows.Scan(&t.ID, &t.TypeName, pq.Array(&t.Implementees))
+		if err != nil {
+			return nil, fmt.Errorf("error when scanning TypeImplementees into struct: %s", err.Error())
+		}
+		ti = append(ti, t)
+	}
+	return ti, nil
 }

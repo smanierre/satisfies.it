@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	db "gitlab.com/sean.manierre/typer-site/postgres"
 )
 
 var endpoints = map[string]func(http.ResponseWriter, *http.Request){
@@ -38,24 +40,25 @@ func getSingleInterface(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		//Going to assume they are searching by name
 		getInterfacesByName(w, r)
+		return
 	}
-	w.Header().Set("content-type", "application/json")
 	i := typeStore.GetInterfaceByID(id)
-	if i.Package == "" {
+	if i.CT.Package == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(i)
 }
 
 func getInterfacesByName(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
 	interfaceQuery := r.URL.Path[strings.Index(r.URL.Path, "/interface/")+11:]
 	interfaces := typeStore.GetInterfacesByName(interfaceQuery)
 	if len(interfaces) == 0 {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(interfaces)
 }
 
@@ -81,23 +84,23 @@ func getSingleTypeByID(w http.ResponseWriter, r *http.Request) {
 		//Going to assume they passed in a name to search for
 		getTypesByName(w, r)
 	}
-	w.Header().Set("content-type", "application/json")
 	typ := typeStore.GetConcreteTypeByID(id)
-	if typ.Package == "" {
+	if typ.CT.Package == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(typ)
 }
 
 func getTypesByName(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
 	typeQuery := r.URL.Path[strings.Index(r.URL.Path, "/type/")+6:]
 	types := typeStore.GetConcreteTypesByName(typeQuery)
 	if len(types) == 0 {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(types)
 }
 
@@ -113,18 +116,14 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	inter := typeStore.GetInterfaceByID(interfaceID)
-	typeList := []model.ConcreteTypeRecord{}
+	typeList := []db.CustomTypeRecord{}
 	for _, v := range typeStore.GetImplementingIDs(interfaceID) {
-		for _, t := range typeStore.GetConcreteTypes() {
-			if t.ID == v {
-				typeList = append(typeList, t)
-				continue
-			}
-		}
+		typeList = append(typeList, typeStore.GetConcreteTypeByID(v))
 	}
+
 	returnJSON := struct {
-		Interface    model.InterfaceRecord
-		Implementers []model.ConcreteTypeRecord
+		Interface    db.CustomTypeRecord
+		Implementers []db.CustomTypeRecord
 	}{
 		Interface:    inter,
 		Implementers: typeList,
@@ -145,18 +144,13 @@ func getImplementedInterfaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	concreteType := typeStore.GetConcreteTypeByID(typeID)
-	interfaceList := []model.InterfaceRecord{}
+	interfaceList := []db.CustomTypeRecord{}
 	for _, v := range typeStore.GetImplementeeIDs(typeID) {
-		for _, i := range typeStore.GetInterfaces() {
-			if i.ID == v {
-				interfaceList = append(interfaceList, i)
-				continue
-			}
-		}
+		interfaceList = append(interfaceList, typeStore.GetInterfaceByID(v))
 	}
 	returnJSON := struct {
-		Type         model.ConcreteTypeRecord
-		Implementees []model.InterfaceRecord
+		Type         db.CustomTypeRecord
+		Implementees []db.CustomTypeRecord
 	}{
 		Type:         concreteType,
 		Implementees: interfaceList,

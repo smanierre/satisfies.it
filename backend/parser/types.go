@@ -18,20 +18,20 @@ const (
 
 //CustomType represents a type that was parsed from a file. It can be an interface or a concrete type.
 type CustomType struct {
-	Package  string
-	Name     string
-	Type     Type
-	Basetype string
-	Methods  []Method
+	Package  string   `json:"package"`
+	Name     string   `json:"name"`
+	Type     Type     `json:"type"`
+	Basetype string   `json:"base_type"`
+	Methods  []Method `json:"methods"`
 }
 
 //Method represents a Method of an interface or a concrete type.
 type Method struct {
-	Name            string
-	PointerReceiver bool
-	Receiver        string
-	Parameters      []string
-	ReturnValues    []string
+	Name            string   `json:"name"`
+	PointerReceiver bool     `json:"pointer_receiver"`
+	Receiver        string   `json:"receiver"`
+	Parameters      []string `json:"parameters"`
+	ReturnValues    []string `json:"return_values"`
 }
 
 func (c CustomType) String() string {

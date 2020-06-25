@@ -81,7 +81,6 @@ func ParseAndExportDirectory(dirPath string) error {
 		return err
 	}
 	encoder := json.NewEncoder(outFile)
-	encoder.SetIndent("", "\t")
 	if err := encoder.Encode(p); err != nil {
 		return err
 	}

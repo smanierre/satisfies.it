@@ -2,13 +2,16 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"runtime"
 
 	"github.com/joho/godotenv"
 	"gitlab.com/sean.manierre/typer-site/parser"
 	"gitlab.com/sean.manierre/typer-site/postgres"
+	"gitlab.com/sean.manierre/typer-site/server"
+	"gitlab.com/sean.manierre/typer-site/store"
 )
 
 func main() {
@@ -20,7 +23,7 @@ func main() {
 	dataFile := flag.String("dataFile", "", "The datafile to be loaded if overwriteDb is also true. Optional.")
 	// certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
 	// keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
-	// port := flag.Int("port", 443, "Port for the web server to listen on, defaults to 443.")
+	port := flag.Int("port", 443, "Port for the web server to listen on, defaults to 443.")
 	dbHost := flag.String("dbHost", os.Getenv("DB_HOST"), "The hostname or IP of the database host. Defaults to localhost.")
 	dbPort := flag.String("dbPort", os.Getenv("DB_PORT"), "The port the database is listening on. Defaults to 5432.")
 	dbUser := flag.String("dbUser", os.Getenv("DB_USER"), "The user the database should connect as. Defaults to postgres")
@@ -51,33 +54,10 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	os.Exit(0)
-	// 	store, err := store.NewStore()
-	// 	if err != nil {
-	// 		log.Fatalf("unable to create store: %s", err.Error())
-	// 	}
-	// 	s := server.NewServer(store)
-	// 	log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
-	// }
-	// p := parser.NewParser()
-	windowsFile := "C:\\Go\\src"
-	linuxFile := "/usr/local/go/src"
-	var filePath string
-	if runtime.GOOS == "linux" {
-		filePath = linuxFile
-	} else if runtime.GOOS == "windows" {
-		filePath = windowsFile
-	} else {
-		panic("Please don't run my shitty code on a Mac :)")
-	}
-	err = parser.ParseAndExportDirectory(filePath)
+	store, err := store.NewStore()
 	if err != nil {
-		panic(err)
+		log.Fatalf("unable to create store: %s", err.Error())
 	}
-	// p := parser.NewParser()
-	// err := p.ParseDir(filePath)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// p.ResolveImplementations()
+	s := server.NewServer(store)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
 }
