@@ -12,7 +12,6 @@ build-frontend:
   script:
     - npm install --prefix frontend
     - npm run build --prefix frontend
-    - cp -r frontend/build/* backend/static
   artifacts:
     paths:
       - frontend/build
