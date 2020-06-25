@@ -1,0 +1,16 @@
+image: golang:latest
+
+stages:
+  - build
+  - deploy
+
+build-frontend:
+  image: node:13.4.0
+  stage: build
+  script:
+    - ls
+
+build-site:
+  stage: build
+  script:
+    - ls
