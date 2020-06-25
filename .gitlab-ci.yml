@@ -33,4 +33,4 @@ build-site:
     - parse-files
     - build-frontend
   script:
-    - ls
+    - cd build
