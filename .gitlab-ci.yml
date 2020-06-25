@@ -8,9 +8,15 @@ build-frontend:
   image: node:13.4.0
   stage: build
   script:
-    - ls
+    - npm run build --prefix frontend
+	  - cp -r frontend/build/* backend/static
+  artifacts:
+    paths:
+      - frontend/build
 
 build-site:
   stage: build
+  dependencies:
+    - build-frontend
   script:
     - ls
