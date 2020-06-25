@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"time"
 
 	"gitlab.com/sean.manierre/typer-site/util"
 )
@@ -74,7 +73,7 @@ func ParseAndExportDirectory(dirPath string) error {
 		return err
 	}
 	p.ResolveImplementations()
-	filename := fmt.Sprintf("types_%s.json", time.Now().Format(time.RFC3339))
+	filename := fmt.Sprintf("types.json")
 	outFile, err := os.Create(filename)
 	defer outFile.Close()
 	if err != nil {

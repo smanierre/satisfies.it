@@ -1,22 +1,35 @@
 image: golang:latest
 
 stages:
-  - build
+  - build-front
+  - populate
+  - build-back
   - deploy
 
 build-frontend:
   image: node:13.4.0
-  stage: build
+  stage: build-front
   script:
     - npm run build --prefix frontend
-	  - cp -r frontend/build/* backend/static
+    - cp -r frontend/build/* backend/static
   artifacts:
     paths:
       - frontend/build
 
+parse-files:
+  stage: populate
+  script:
+    - cd backend
+    - go build -o=parser .
+    - ./parser -populate
+  artifacts:
+    paths:
+      - backend/types.json
+
 build-site:
-  stage: build
+  stage: build-back
   dependencies:
+    - parse-files
     - build-frontend
   script:
     - ls
