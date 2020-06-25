@@ -19,9 +19,10 @@ build-frontend:
 parse-files:
   stage: populate
   script:
+    - go env GOROOT
     - cd backend
-    - go build -o=parser .
-    - ./parser -populate
+    - go build -o=type-parser .
+    - ./type-parser -populate
   artifacts:
     paths:
       - backend/types.json
