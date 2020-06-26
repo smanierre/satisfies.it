@@ -36,6 +36,7 @@ build-site:
     - cp backend/types.json prod
     - cp -r frontend/build/* prod/static
     - cp backend/start.sh prod
+    - cp backend/docker-compose.yml prod
     - cd backend
     - CGO_ENABLED=0
     - GOOS=linux
