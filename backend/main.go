@@ -20,9 +20,9 @@ func main() {
 
 	populate := flag.Bool("populate", false, "Set to true if running during build to create a json file to load in production")
 	goSrc := flag.String("goSrc", "/usr/local/go/src", "This is the location of the root of the go files to parse e.g. /usr/local/go/src")
-	dataFile := flag.String("dataFile", "", "The datafile to be loaded if overwriteDb is also true. Optional.")
-	// certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
-	// keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
+	dataFile := flag.String("dataFile", "types.json", "The datafile to be loaded if overwriteDb is also true. Optional.")
+	certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
+	keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
 	port := flag.Int("port", 443, "Port for the web server to listen on, defaults to 443.")
 	dbHost := flag.String("dbHost", os.Getenv("DB_HOST"), "The hostname or IP of the database host. Defaults to localhost.")
 	dbPort := flag.String("dbPort", os.Getenv("DB_PORT"), "The port the database is listening on. Defaults to 5432.")
@@ -59,5 +59,5 @@ func main() {
 		log.Fatalf("unable to create store: %s", err.Error())
 	}
 	s := server.NewServer(store)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
+	log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 }

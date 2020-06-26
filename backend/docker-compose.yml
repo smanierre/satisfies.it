@@ -1,26 +1,16 @@
 version: "3.7"
 services:
-    db:
-        image: postgres
-        environment: 
-            POSTGRES_PASSWORD: ${DB_PASSWORD}
-            POSTGRES_USER: ${DB_USER}
-            POSTGRES_DB: ${DB_NAME}
-        volumes:
-            - data_volume:/var/lib/db
-        expose: 
-            - '5432'
-        # restart:
-        #     - unless stopped
-    web:
-        image: smanierre/typer-site
-        depends_on: 
-            - db
-        ports:
-            - '443:8080'
-        environment:
-            PGPASSWORD: ${DB_PASSWORD}
-        # restart:
-        #     "unless stopped"
+  db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - data_volume:/var/lib/db
+    ports:
+      - ${DB_PORT}:"5432"
+    # restart:
+    #     - unless stopped
 volumes:
-    data_volume:
+  data_volume:
