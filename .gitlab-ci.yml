@@ -13,19 +13,15 @@ build-frontend:
     - npm install --prefix frontend
     - npm run build --prefix frontend
   artifacts:
-    paths:
-      - frontend/build
+    paths: frontend/build
 
 parse-files:
   stage: populate
   script:
-    - go env GOROOT
     - cd backend
-    - go build -o=type-parser .
-    - ./type-parser -populate
+    - go run main.go -populate
   artifacts:
-    paths:
-      - backend/types.json
+    paths: backend/types.json
 
 build-site:
   stage: build-back
@@ -33,5 +29,11 @@ build-site:
     - parse-files
     - build-frontend
   script:
-    - ls frontend/build
-    - ls backend
+    - mkdir prod
+    - mkdir prod/static
+    - cp backend/types.json prod
+    - cp -r frontend/build/* prod/static
+    - cd backend
+    - go build -0 ../prod/typer-site .
+  artifacts:
+    paths: prod
