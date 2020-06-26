@@ -41,7 +41,7 @@ build-site:
     - GOOS=linux
     - go build -o ../prod/typer-site .
     - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > ../prod/.env
-    - cat prod/.env
+    - cat ..prod/.env
   artifacts:
     paths:
       - prod
