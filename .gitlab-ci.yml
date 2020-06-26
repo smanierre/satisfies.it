@@ -13,7 +13,8 @@ build-frontend:
     - npm install --prefix frontend
     - npm run build --prefix frontend
   artifacts:
-    paths: frontend/build
+    paths:
+      - frontend/build
 
 parse-files:
   stage: populate
@@ -21,7 +22,8 @@ parse-files:
     - cd backend
     - go run main.go -populate
   artifacts:
-    paths: backend/types.json
+    paths:
+      - backend/types.json
 
 build-site:
   stage: build-back
@@ -36,4 +38,5 @@ build-site:
     - cd backend
     - go build -0 ../prod/typer-site .
   artifacts:
-    paths: prod
+    paths:
+      - prod
