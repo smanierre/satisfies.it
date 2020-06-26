@@ -37,7 +37,9 @@ build-site:
     - cp -r frontend/build/* prod/static
     - cp backend/start.sh prod
     - cd backend
-    - go build CGO_ENABLED=0 GOOS=linux -o ../prod/typer-site .
+    - CGO_ENABLED=0
+    - GOOS=linux
+    - go build -o ../prod/typer-site .
     - echo "DB_HOST=$DB_HOST\nDB_NAME=$DBNAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER"
   artifacts:
     paths:
