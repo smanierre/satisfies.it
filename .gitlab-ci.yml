@@ -12,18 +12,18 @@ build-frontend:
   script:
     - npm install --prefix frontend
     - npm run build --prefix frontend
-  artifacts:
-    paths:
-      - frontend/build
+  # artifacts:
+  #   paths:
+  #     - frontend/build
 
 parse-files:
   stage: populate
   script:
     - cd backend
     - go run main.go -populate
-  artifacts:
-    paths:
-      - backend/types.json
+  # artifacts:
+  #   paths:
+  #     - backend/types.json
 
 build-site:
   stage: build-back
@@ -42,8 +42,6 @@ build-site:
     - go build -o ../prod/typer-site .
     - cd ..
     - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > prod/.env
-    - cd prod
-    - cat .env
   artifacts:
     paths:
       - prod
