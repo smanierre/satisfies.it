@@ -12,18 +12,18 @@ build-frontend:
   script:
     - npm install --prefix frontend
     - npm run build --prefix frontend
-  # artifacts:
-  #   paths:
-  #     - frontend/build
+  artifacts:
+    paths:
+      - frontend/build
 
 parse-files:
   stage: populate
   script:
     - cd backend
     - go run main.go -populate
-  # artifacts:
-  #   paths:
-  #     - backend/types.json
+  artifacts:
+    paths:
+      - backend/types.json
 
 build-site:
   stage: build-back
