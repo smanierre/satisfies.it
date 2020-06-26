@@ -36,7 +36,7 @@ build-site:
     - cp backend/types.json prod
     - cp -r frontend/build/* prod/static
     - cd backend
-    - go build -0 ../prod/typer-site .
+    - go build -o ../prod/typer-site .
   artifacts:
     paths:
       - prod
