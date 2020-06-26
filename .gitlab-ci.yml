@@ -40,7 +40,7 @@ build-site:
     - CGO_ENABLED=0
     - GOOS=linux
     - go build -o ../prod/typer-site .
-    - echo $DB_HOST
+    - echo "$DB_HOST"
     - echo "DB_HOST=$DB_HOST\nDB_NAME=$DBNAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER"
   artifacts:
     paths:
