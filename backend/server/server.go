@@ -35,7 +35,7 @@ func (s Server) registerEndpoints() {
 	}
 }
 
-func allowCorsMiddleware(next http.Handler) http.Handler {
+func AllowCorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		next.ServeHTTP(w, r)

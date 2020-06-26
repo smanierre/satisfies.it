@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { Link } from "react-router-dom";
 
-import { ITypeResult } from "./TypeResults";
+import { ICustomTypeResult } from "../types";
 
 const ResultContainer = styled(Link)`
   width: 100%;
@@ -11,9 +11,9 @@ const ResultContainer = styled(Link)`
   font-size: 1.6rem;
 `;
 
-const Result: React.FC<{ result: ITypeResult }> = ({ result }) => (
-  <ResultContainer to={`/type/${result.ID}`}>
-    <li>{`${result.Package}.${result.Name}`}</li>
+const Result: React.FC<{ result: ICustomTypeResult }> = ({ result }) => (
+  <ResultContainer to={`/type/${result.id}`}>
+    <li>{`${result.type.package}.${result.type.name}`}</li>
   </ResultContainer>
 );
 

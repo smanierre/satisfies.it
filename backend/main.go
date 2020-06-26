@@ -62,6 +62,6 @@ func main() {
 	if *prod {
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	} else {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), server.AllowCorsMiddleware(s.ServeMux)))
 	}
 }

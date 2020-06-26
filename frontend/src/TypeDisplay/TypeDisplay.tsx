@@ -3,8 +3,7 @@ import styled from "styled-components";
 import { Link } from "react-router-dom";
 
 import { apiRoot } from "../index";
-import { IInterfaceResult } from "../InterfaceResults/InterfaceResults";
-import { ITypeResult } from "../TypeResults/TypeResults";
+import { ICustomTypeResult } from "../types";
 
 const Container = styled.div`
   display: grid;
@@ -71,8 +70,8 @@ const ImplementeesTitle = styled.h4`
 `;
 
 const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
-  const [Type, setType] = useState<ITypeResult | null>(null);
-  const [Implementees, setImplementees] = useState<IInterfaceResult[] | null>(
+  const [Type, setType] = useState<ICustomTypeResult | null>(null);
+  const [Implementees, setImplementees] = useState<ICustomTypeResult[] | null>(
     null
   );
   useEffect(() => {
@@ -83,8 +82,8 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
       res
         .json()
         .then((data) =>
-          data?.Implementees
-            ? setImplementees(data.Implementees)
+          data?.implementees
+            ? setImplementees(data.implementees)
             : setImplementees(null)
         )
     );
@@ -92,19 +91,19 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
   return (
     <Container>
       <InterfaceName>
-        {Type?.Package ? `${Type?.Package}.${Type?.Name}` : ""}
+        {Type?.type.package ? `${Type?.type.package}.${Type?.type.name}` : ""}
       </InterfaceName>
       <InterfaceDetails>
-        <TypeName>Type: {Type?.BaseType}</TypeName>
+        <TypeName>Type: {Type?.type.base_type}</TypeName>
         <MethodsTitle>Methods</MethodsTitle>
         <ScrollableList alignment="methods">
-          {Type?.Methods
-            ? Type?.Methods.map((method) => (
-                <li key={method.ID}>
-                  {method.Name}({method.Parameters.join(", ")}){" "}
-                  {method.ReturnValues.length > 1
-                    ? `(${method.ReturnValues.join(", ")})`
-                    : method.ReturnValues}
+          {Type?.type.methods
+            ? Type?.type.methods.map((method) => (
+                <li key={method.name}>
+                  {method.name}({method.parameters.join(", ")}){" "}
+                  {method.return_values.length > 1
+                    ? `(${method.return_values.join(", ")})`
+                    : method.return_values}
                 </li>
               ))
             : null}
@@ -112,9 +111,9 @@ const TypeDisplay: React.FC<{ id: string }> = ({ id }) => {
         <ImplementeesTitle>Implements</ImplementeesTitle>
         <ScrollableList alignment="implementers">
           {Implementees?.map((implementee) => (
-            <li key={implementee.ID}>
-              <Link to={`/interface/${implementee.ID}`}>
-                {implementee.Package}.{implementee.Name}
+            <li key={implementee.id}>
+              <Link to={`/interface/${implementee.id}`}>
+                {implementee.type.package}.{implementee.type.name}
               </Link>
             </li>
           ))}

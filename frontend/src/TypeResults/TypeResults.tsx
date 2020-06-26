@@ -2,28 +2,12 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
 import { apiRoot } from "../index";
+import { ICustomTypeResult } from "../types";
 import ResultsContainer from "../StyledComponents/ResultListContainer";
 import Result from "./Result";
 
 interface ITypeResultProps {
   searchQuery: string;
-}
-
-export interface IMethod {
-  ID: number;
-  Package: string;
-  Name: string;
-  Parameters: string[];
-  ReceiverName: string;
-  ReturnValues: string[];
-}
-
-export interface ITypeResult {
-  ID: number;
-  Package: string;
-  Name: string;
-  BaseType: string;
-  Methods: IMethod[];
 }
 
 const Layout = styled.div`
@@ -41,7 +25,7 @@ const ResultHeader = styled.h1`
 `;
 
 const Results: React.FC<ITypeResultProps> = ({ searchQuery }) => {
-  const [results, setResults] = useState<ITypeResult[] | null>(null);
+  const [results, setResults] = useState<ICustomTypeResult[] | null>(null);
   useEffect(() => {
     fetch(`${apiRoot}/type/${searchQuery}`).then((res) =>
       res.json().then((data) => setResults(data))
@@ -55,7 +39,7 @@ const Results: React.FC<ITypeResultProps> = ({ searchQuery }) => {
       </ResultHeader>
       <ResultsContainer>
         {results?.map((result) => (
-          <Result key={result.ID} result={result} />
+          <Result key={result.id} result={result} />
         ))}
       </ResultsContainer>
     </Layout>

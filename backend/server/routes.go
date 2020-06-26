@@ -122,8 +122,8 @@ func getImplementingTypes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	returnJSON := struct {
-		Interface    db.CustomTypeRecord
-		Implementers []db.CustomTypeRecord
+		Interface    db.CustomTypeRecord   `json:"interface"`
+		Implementers []db.CustomTypeRecord `json:"implementers"`
 	}{
 		Interface:    inter,
 		Implementers: typeList,
@@ -149,8 +149,8 @@ func getImplementedInterfaces(w http.ResponseWriter, r *http.Request) {
 		interfaceList = append(interfaceList, typeStore.GetInterfaceByID(v))
 	}
 	returnJSON := struct {
-		Type         db.CustomTypeRecord
-		Implementees []db.CustomTypeRecord
+		Type         db.CustomTypeRecord   `json:"type"`
+		Implementees []db.CustomTypeRecord `json:"implementees"`
 	}{
 		Type:         concreteType,
 		Implementees: interfaceList,

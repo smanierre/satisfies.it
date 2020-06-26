@@ -3,8 +3,7 @@ import styled from "styled-components";
 import { Link } from "react-router-dom";
 
 import { apiRoot } from "../index";
-import { IInterfaceResult } from "../InterfaceResults/InterfaceResults";
-import { ITypeResult } from "../TypeResults/TypeResults";
+import { ICustomTypeResult } from "../types";
 
 const Container = styled.div`
   display: grid;
@@ -70,46 +69,48 @@ const ImplementersTitle = styled.h4`
   grid-row-start: lists;
 `;
 const InterfaceDisplay: React.FC<{ id: string }> = ({ id }) => {
-  const [Interface, setInterface] = useState<IInterfaceResult | null>(null);
-  const [Implementers, setImplementers] = useState<ITypeResult[] | null>(null);
+  const [Interface, setInterface] = useState<ICustomTypeResult | null>(null);
+  const [Implementers, setImplementers] = useState<ICustomTypeResult[] | null>(
+    null
+  );
   useEffect(() => {
     fetch(`${apiRoot}/interface/${id}`).then((res) =>
       res.json().then((data) => setInterface(data))
     );
     fetch(`${apiRoot}/implementers/${id}`).then((res) =>
-      res
-        .json()
-        .then((data) =>
-          data?.Implementers
-            ? setImplementers(data.Implementers)
-            : setImplementers(null)
-        )
+      res.json().then((data) => {
+        data?.implementers
+          ? setImplementers(data.implementers)
+          : setImplementers(null);
+      })
     );
   }, [id]);
   return (
     <Container>
       <InterfaceName>
-        {Interface?.Package ? `${Interface?.Package}.${Interface?.Name}` : ""}
+        {Interface?.type.package
+          ? `${Interface?.type.package}.${Interface?.type.name}`
+          : ""}
       </InterfaceName>
       <InterfaceDetails>
         <Type>Type: Interface</Type>
         <MethodsTitle>Methods</MethodsTitle>
         <ScrollableList alignment="methods">
-          {Interface?.Methods.map((method) => (
-            <li key={method.ID}>
-              {method.Name}({method.Parameters.join(", ")}){" "}
-              {method.ReturnValues.length > 1
-                ? `(${method.ReturnValues.join(", ")})`
-                : method.ReturnValues}
+          {Interface?.type.methods.map((method) => (
+            <li key={method.name}>
+              {method.name}({method.parameters.join(", ")}){" "}
+              {method.return_values.length > 1
+                ? `(${method.return_values.join(", ")})`
+                : method.return_values}
             </li>
           ))}
         </ScrollableList>
         <ImplementersTitle>Implementers</ImplementersTitle>
         <ScrollableList alignment="implementers">
           {Implementers?.map((implementer) => (
-            <li key={implementer.ID}>
-              <Link to={`/type/${implementer.ID}`}>
-                {implementer.Package}.{implementer.Name}
+            <li key={implementer.id}>
+              <Link to={`/type/${implementer.id}`}>
+                {implementer.type.package}.{implementer.type.name}
               </Link>
             </li>
           ))}
