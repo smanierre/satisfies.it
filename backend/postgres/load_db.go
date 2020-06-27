@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/lib/pq"
@@ -38,6 +39,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 	for _, ct := range p.Types {
 		var methodIDs []int64
 		for _, method := range ct.Methods {
+			log.Println("Inserting method: ", method.Name)
 			var lastInsertID int64
 			row := insertMethodStatement.QueryRow(method.Name, method.PointerReceiver, method.Receiver, pq.Array(method.Parameters), pq.Array(method.ReturnValues))
 			err := row.Scan(&lastInsertID)
@@ -47,6 +49,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 			methodIDs = append(methodIDs, lastInsertID)
 		}
 		var lastInsertID int64
+		log.Println("Insertying CustomType: ", ct.Package, ".", ct.Name)
 		row := insertCustomTypeStatement.QueryRow(ct.Package, ct.Name, ct.Type, ct.Basetype, pq.Array(methodIDs))
 		err := row.Scan(&lastInsertID)
 		if err != nil {
@@ -60,6 +63,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 		for _, t := range v {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
+		log.Println("Inserting InterfaceImplementer record for interface with name: ", k)
 		_, err := insertInterfaceImplementersStatement.Exec(k, pq.Array(typeIDs))
 		if err != nil {
 			return err
@@ -71,6 +75,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 		for _, t := range v {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
+		log.Println("Inserting TypeImplementee record for type with name: ", k)
 		_, err := insertTypeImplementeeStatement.Exec(k, pq.Array(typeIDs))
 		if err != nil {
 			return err
