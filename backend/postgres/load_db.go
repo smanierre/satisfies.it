@@ -49,7 +49,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 			methodIDs = append(methodIDs, lastInsertID)
 		}
 		var lastInsertID int64
-		log.Println("Insertying CustomType: ", ct.Package, ".", ct.Name)
+		log.Println("Inserting CustomType: ", ct.Package, ".", ct.Name)
 		row := insertCustomTypeStatement.QueryRow(ct.Package, ct.Name, ct.Type, ct.Basetype, pq.Array(methodIDs))
 		err := row.Scan(&lastInsertID)
 		if err != nil {

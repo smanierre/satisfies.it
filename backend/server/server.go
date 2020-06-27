@@ -35,6 +35,7 @@ func (s Server) registerEndpoints() {
 	}
 }
 
+//AllowCorsMiddleware allows CORS requests from any source for development purposes only.
 func AllowCorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
