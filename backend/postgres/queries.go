@@ -1,11 +1,10 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/lib/pq"
 	"gitlab.com/sean.manierre/typer-site/parser"
 )
 
@@ -57,98 +56,20 @@ const (
 	createDatabaseQuery = "CREATE DATABASE types;"
 )
 
-var (
-	insertCustomTypeStatement                  *sql.Stmt
-	selectAllCustomTypeStatement               *sql.Stmt
-	selectCustomTypeByIDStatement              *sql.Stmt
-	selectCustomTypeByNameStatement            *sql.Stmt
-	insertMethodStatement                      *sql.Stmt
-	selectAllMethodStatement                   *sql.Stmt
-	selectMethodByIDStatement                  *sql.Stmt
-	selectMethodByNameStatement                *sql.Stmt
-	insertInterfaceImplementersStatement       *sql.Stmt
-	selectAllInterfaceImplementersStatement    *sql.Stmt
-	selectInterfaceImplementersByNameStatement *sql.Stmt
-	insertTypeImplementeeStatement             *sql.Stmt
-	selectAllTypeImplementeesStatement         *sql.Stmt
-	selectTypeImplementeesByNameStatement      *sql.Stmt
-)
-
-func prepareStatements() error {
-	var err error
-	insertCustomTypeStatement, err = db.Prepare(insertCustomTypeQuery)
-	if err != nil {
-		return err
-	}
-	selectAllCustomTypeStatement, err = db.Prepare(selectAllCustomTypeQuery)
-	if err != nil {
-		return err
-	}
-	selectCustomTypeByIDStatement, err = db.Prepare(selectCustomTypeByIDQuery)
-	if err != nil {
-		return err
-	}
-	selectCustomTypeByNameStatement, err = db.Prepare(selectCustomTypeByNameQuery)
-	if err != nil {
-		return err
-	}
-	insertMethodStatement, err = db.Prepare(insertMethodQuery)
-	if err != nil {
-		return err
-	}
-	selectAllMethodStatement, err = db.Prepare(selectAllMethodQuery)
-	if err != nil {
-		return err
-	}
-	selectMethodByIDStatement, err = db.Prepare(selectMethodByIDQuery)
-	if err != nil {
-		return err
-	}
-	selectMethodByNameStatement, err = db.Prepare(selectMethodByNameQuery)
-	if err != nil {
-		return err
-	}
-	insertInterfaceImplementersStatement, err = db.Prepare(insertInterfaceImplementersQuery)
-	if err != nil {
-		return err
-	}
-	selectAllInterfaceImplementersStatement, err = db.Prepare(selectAllInterfaceImplementersQuery)
-	if err != nil {
-		return err
-	}
-	selectInterfaceImplementersByNameStatement, err = db.Prepare(selectInterfaceImplementersByNameQuery)
-	if err != nil {
-		return err
-	}
-	insertTypeImplementeeStatement, err = db.Prepare(insertTypeImplementeeQuery)
-	if err != nil {
-		return err
-	}
-	selectAllTypeImplementeesStatement, err = db.Prepare(selectAllTypeImplementeesQuery)
-	if err != nil {
-		return err
-	}
-	selectTypeImplementeesByNameStatement, err = db.Prepare(selectTypeImplementeesByNameQuery)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func dropTables() error {
-	_, err := db.Exec("DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
+	_, err := db.Exec(context.Background(), "DROP TABLE IF EXISTS public.CUSTOM_TYPES CASCADE;")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("DROP TABLE IF EXISTS public.METHODS;")
+	_, err = db.Exec(context.Background(), "DROP TABLE IF EXISTS public.METHODS;")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("DROP TABLE IF EXISTS public.INTERFACE_IMPLEMENTERS CASCADE;")
+	_, err = db.Exec(context.Background(), "DROP TABLE IF EXISTS public.INTERFACE_IMPLEMENTERS CASCADE;")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("DROP TABLE IF EXISTS public.TYPE_IMPLEMENTEES CASCADE;")
+	_, err = db.Exec(context.Background(), "DROP TABLE IF EXISTS public.TYPE_IMPLEMENTEES CASCADE;")
 	if err != nil {
 		return err
 	}
@@ -156,7 +77,7 @@ func dropTables() error {
 }
 
 func checkDBStructure() error {
-	res, err := db.Query("select table_name from information_schema.tables;")
+	res, err := db.Query(context.Background(), "select table_name from information_schema.tables;")
 	if err != nil {
 		return err
 	}
@@ -187,28 +108,30 @@ func createDBStructure() error {
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS CUSTOM_TYPES (ID serial PRIMARY KEY, PACKAGE VARCHAR (255), NAME VARCHAR (255), TYPE INTEGER, BASETYPE VARCHAR (255), METHOD_IDS INTEGER[]);")
+	_, err = db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS CUSTOM_TYPES (ID serial PRIMARY KEY, PACKAGE VARCHAR (255), NAME VARCHAR (255), TYPE INTEGER, BASETYPE VARCHAR (255), METHOD_IDS INTEGER[]);")
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS METHODS (ID serial PRIMARY KEY, NAME VARCHAR (255), POINTER_RECEIVER BOOLEAN, RECEIVER VARCHAR(255), PARAMETERS VARCHAR(255)[], RETURN_VALUES VARCHAR(255)[]);")
+	_, err = db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS METHODS (ID serial PRIMARY KEY, NAME VARCHAR (255), POINTER_RECEIVER BOOLEAN, RECEIVER VARCHAR(255), PARAMETERS VARCHAR(255)[], RETURN_VALUES VARCHAR(255)[]);")
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS INTERFACE_IMPLEMENTERS (ID serial PRIMARY KEY, INTERFACE_NAME VARCHAR(255), IMPLEMENTERS INTEGER[]);")
+	_, err = db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS INTERFACE_IMPLEMENTERS (ID serial PRIMARY KEY, INTERFACE_NAME VARCHAR(255), IMPLEMENTERS INTEGER[]);")
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS TYPE_IMPLEMENTEES (ID serial PRIMARY KEY, TYPE_NAME VARCHAR(255), IMPLEMENTEES INTEGER[]);")
+	_, err = db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS TYPE_IMPLEMENTEES (ID serial PRIMARY KEY, TYPE_NAME VARCHAR(255), IMPLEMENTEES INTEGER[]);")
 	return nil
 }
 
 //GetCustomTypes returns all the custom types from the database.
 func GetCustomTypes() ([]CustomTypeRecord, error) {
-	rows, err := selectAllCustomTypeStatement.Query()
+
+	rows, err := db.Query(context.Background(), selectAllCustomTypeQuery)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("error when executing selectAllCustomTypeStatement: %s", err.Error())
 	}
@@ -216,7 +139,7 @@ func GetCustomTypes() ([]CustomTypeRecord, error) {
 	for rows.Next() {
 		var ct CustomTypeRecord
 		var methodIDs []int64
-		err = rows.Scan(&ct.ID, &ct.CT.Package, &ct.CT.Name, &ct.CT.Type, &ct.CT.Basetype, pq.Array(&methodIDs))
+		err = rows.Scan(&ct.ID, &ct.CT.Package, &ct.CT.Name, &ct.CT.Type, &ct.CT.Basetype, &methodIDs)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning CustomTypeRecord into struct: %s", err.Error())
 		}
@@ -233,9 +156,9 @@ func GetCustomTypes() ([]CustomTypeRecord, error) {
 }
 
 func getMethodByID(id int64) (MethodRecord, error) {
-	row := selectMethodByIDStatement.QueryRow(id)
+	row := db.QueryRow(context.Background(), selectMethodByIDQuery, id)
 	var mr MethodRecord
-	if err := row.Scan(&mr.ID, &mr.M.Name, &mr.M.PointerReceiver, &mr.M.Receiver, pq.Array(&mr.M.Parameters), pq.Array(&mr.M.ReturnValues)); err != nil {
+	if err := row.Scan(&mr.ID, &mr.M.Name, &mr.M.PointerReceiver, &mr.M.Receiver, &mr.M.Parameters, &mr.M.ReturnValues); err != nil {
 		return MethodRecord{}, fmt.Errorf("error when scanning method retreived by id into struct: %s", err.Error())
 	}
 	return mr, nil
@@ -243,7 +166,7 @@ func getMethodByID(id int64) (MethodRecord, error) {
 
 //GetMethods returns all the methods from the database.
 func GetMethods() ([]MethodRecord, error) {
-	rows, err := selectAllMethodStatement.Query()
+	rows, err := db.Query(context.Background(), "selectAllMethodStatement")
 	if err != nil {
 		return nil, err
 	}
@@ -261,14 +184,14 @@ func GetMethods() ([]MethodRecord, error) {
 
 //GetInterfaceImplementers returns a list of the IDs of all the interfaces along with the IDs of the types that implement them.
 func GetInterfaceImplementers() ([]InterfaceImplementersRecord, error) {
-	rows, err := selectAllInterfaceImplementersStatement.Query()
+	rows, err := db.Query(context.Background(), selectAllInterfaceImplementersQuery)
 	if err != nil {
 		return nil, err
 	}
 	ii := []InterfaceImplementersRecord{}
 	for rows.Next() {
 		var i InterfaceImplementersRecord
-		err = rows.Scan(&i.ID, &i.InterfaceName, pq.Array(&i.Implementers))
+		err = rows.Scan(&i.ID, &i.InterfaceName, &i.Implementers)
 		if err != nil {
 			return nil, fmt.Errorf("error when scanning InterfaceImplementers into struct: %s", err.Error())
 		}
@@ -279,14 +202,14 @@ func GetInterfaceImplementers() ([]InterfaceImplementersRecord, error) {
 
 //GetTypeImplementees returns a list of the IDs of all the types along with the IDs of all the interfaces that they implement.
 func GetTypeImplementees() ([]TypeImplementeesRecord, error) {
-	rows, err := selectAllTypeImplementeesStatement.Query()
+	rows, err := db.Query(context.Background(), selectAllTypeImplementeesQuery)
 	if err != nil {
 		return nil, err
 	}
 	ti := []TypeImplementeesRecord{}
 	for rows.Next() {
 		var t TypeImplementeesRecord
-		err = rows.Scan(&t.ID, &t.TypeName, pq.Array(&t.Implementees))
+		err = rows.Scan(&t.ID, &t.TypeName, &t.Implementees)
 		if err != nil {
 			return nil, fmt.Errorf("error when scanning TypeImplementees into struct: %s", err.Error())
 		}

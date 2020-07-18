@@ -1,17 +1,17 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"gitlab.com/sean.manierre/typer-site/parser"
 )
 
-func loadDb(db *sql.DB, dataFile string) error {
+func loadDb(db *pgxpool.Pool, dataFile string) error {
 	df, err := os.Open(dataFile)
 	if err != nil {
 		return err
@@ -32,16 +32,13 @@ func loadDb(db *sql.DB, dataFile string) error {
 	}
 
 	//Once the structure is created, prepare the statements.
-	err = prepareStatements()
-	if err != nil {
-		return err
-	}
+
 	for _, ct := range p.Types {
 		var methodIDs []int64
 		for _, method := range ct.Methods {
 			log.Println("Inserting method: ", method.Name)
 			var lastInsertID int64
-			row := insertMethodStatement.QueryRow(method.Name, method.PointerReceiver, method.Receiver, pq.Array(method.Parameters), pq.Array(method.ReturnValues))
+			row := db.QueryRow(context.Background(), "insertMethodStatement", method.Name, method.PointerReceiver, method.Receiver, method.Parameters, method.ReturnValues)
 			err := row.Scan(&lastInsertID)
 			if err != nil {
 				return err
@@ -50,7 +47,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 		}
 		var lastInsertID int64
 		log.Println("Inserting CustomType: ", ct.Package, ".", ct.Name)
-		row := insertCustomTypeStatement.QueryRow(ct.Package, ct.Name, ct.Type, ct.Basetype, pq.Array(methodIDs))
+		row := db.QueryRow(context.Background(), "insertCustomTypeStatement", ct.Package, ct.Name, ct.Type, ct.Basetype, methodIDs)
 		err := row.Scan(&lastInsertID)
 		if err != nil {
 			return err
@@ -64,7 +61,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
 		log.Println("Inserting InterfaceImplementer record for interface with name: ", k)
-		_, err := insertInterfaceImplementersStatement.Exec(k, pq.Array(typeIDs))
+		_, err := db.Exec(context.Background(), "insertInterfaceImplementersStatement", k, typeIDs)
 		if err != nil {
 			return err
 		}
@@ -76,7 +73,7 @@ func loadDb(db *sql.DB, dataFile string) error {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
 		log.Println("Inserting TypeImplementee record for type with name: ", k)
-		_, err := insertTypeImplementeeStatement.Exec(k, pq.Array(typeIDs))
+		_, err := db.Exec(context.Background(), "insertTypeImplementeeStatement", k, typeIDs)
 		if err != nil {
 			return err
 		}
