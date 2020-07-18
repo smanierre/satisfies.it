@@ -166,7 +166,7 @@ func getMethodByID(id int64) (MethodRecord, error) {
 
 //GetMethods returns all the methods from the database.
 func GetMethods() ([]MethodRecord, error) {
-	rows, err := db.Query(context.Background(), "selectAllMethodStatement")
+	rows, err := db.Query(context.Background(), selectAllMethodQuery)
 	if err != nil {
 		return nil, err
 	}

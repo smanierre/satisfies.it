@@ -38,7 +38,7 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 		for _, method := range ct.Methods {
 			log.Println("Inserting method: ", method.Name)
 			var lastInsertID int64
-			row := db.QueryRow(context.Background(), "insertMethodStatement", method.Name, method.PointerReceiver, method.Receiver, method.Parameters, method.ReturnValues)
+			row := db.QueryRow(context.Background(), insertMethodQuery, method.Name, method.PointerReceiver, method.Receiver, method.Parameters, method.ReturnValues)
 			err := row.Scan(&lastInsertID)
 			if err != nil {
 				return err
@@ -47,7 +47,7 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 		}
 		var lastInsertID int64
 		log.Println("Inserting CustomType: ", ct.Package, ".", ct.Name)
-		row := db.QueryRow(context.Background(), "insertCustomTypeStatement", ct.Package, ct.Name, ct.Type, ct.Basetype, methodIDs)
+		row := db.QueryRow(context.Background(), insertCustomTypeQuery, ct.Package, ct.Name, ct.Type, ct.Basetype, methodIDs)
 		err := row.Scan(&lastInsertID)
 		if err != nil {
 			return err
@@ -61,7 +61,7 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
 		log.Println("Inserting InterfaceImplementer record for interface with name: ", k)
-		_, err := db.Exec(context.Background(), "insertInterfaceImplementersStatement", k, typeIDs)
+		_, err := db.Exec(context.Background(), insertInterfaceImplementersQuery, k, typeIDs)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
 		log.Println("Inserting TypeImplementee record for type with name: ", k)
-		_, err := db.Exec(context.Background(), "insertTypeImplementeeStatement", k, typeIDs)
+		_, err := db.Exec(context.Background(), insertTypeImplementeeQuery, k, typeIDs)
 		if err != nil {
 			return err
 		}
