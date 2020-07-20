@@ -42,6 +42,7 @@ func (p *Parser) ParseFile(filepath string) error {
 	ast.Walk(tv, file)
 	p.Types = append(p.Types, tv.Types...)
 	p.methods = append(p.methods, tv.Methods...)
+	p.resolveEmbeddedInterfaces()
 	p.resolveMethods()
 	return nil
 }

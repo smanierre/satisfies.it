@@ -5,6 +5,7 @@ import (
 )
 
 func (p *Parser) resolveMethods() {
+	p.resolveEmbeddedInterfaces()
 	var remaining []Method
 	for j, m := range p.methods {
 		//Keep track of whether or not the method has been resolved to a CustomType
