@@ -6,6 +6,7 @@ import (
 )
 
 func (p *Parser) resolveEmbeddedInterfaces() {
+
 	for i, t := range p.Types {
 		for j, method := range t.Methods {
 			//If the name contains a ., it's an embedded interface. Search for if it's been parsed and update
@@ -16,6 +17,7 @@ func (p *Parser) resolveEmbeddedInterfaces() {
 						//Get rid of the embedded interface first, then append methods of that interface.
 						p.Types[i].Methods = append(p.Types[i].Methods[:j], p.Types[i].Methods[j+1:]...)
 						p.Types[i].Methods = append(p.Types[i].Methods, ty.Methods...)
+						break
 					}
 				}
 			}

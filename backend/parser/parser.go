@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/util"
 )
@@ -51,6 +52,10 @@ func (p *Parser) ParseFile(filepath string) error {
 func (p *Parser) ParseDir(dirpath string) error {
 	err := filepath.Walk(dirpath, func(path string, info os.FileInfo, err error) error {
 		if util.IsTestFile(info.Name()) || info.IsDir() || !util.IsGoFile(info.Name()) {
+			return nil
+		}
+		//Check to see if the file is part of an internal package. If so, ignore it.
+		if strings.Contains(path, "internal/") {
 			return nil
 		}
 		err = p.ParseFile(path)
