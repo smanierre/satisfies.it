@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/store"
 )
@@ -36,7 +37,7 @@ func (s Server) registerEndpoints() {
 
 //getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
 func getRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
+	if r.URL.Path != "/" && !strings.Contains(r.URL.Path, "/static") && r.URL.Path != "/logo.svg" {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
