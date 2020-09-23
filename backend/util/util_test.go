@@ -118,6 +118,9 @@ func TestIsGoFile(t *testing.T) {
 		{"Non Go file", "file.cpp", false},
 		{"Multiple Extensions", "file.go.gz", false},
 		{"Multiple extensions before .go", "file.pb.go", true},
+		{"Filename shorter than 3 characters", "a", false},
+		{"Actual file shorter than 3 characters", "d.h", false},
+		{"Empty string", "", false},
 	}
 
 	for _, tt := range tc {

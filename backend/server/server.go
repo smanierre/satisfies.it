@@ -27,12 +27,21 @@ func NewServer(store store.TypeStore) Server {
 
 func (s Server) registerEndpoints() {
 	typeStore = s.TypeStore
-	fs := http.FileServer(http.Dir("./static"))
-	http.Handle("/", RedirectToRoot(fs))
 	for k, v := range endpoints {
 		log.Printf("Registering endpoint /api%s\n", k)
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
+	http.Handle("/", http.HandlerFunc(getRoot))
+}
+
+//getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
+func getRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	fs := http.FileServer(http.Dir("./static"))
+	fs.ServeHTTP(w, r)
 }
 
 //AllowCorsMiddleware allows CORS requests from any source for development purposes only.
@@ -40,17 +49,5 @@ func AllowCorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		next.ServeHTTP(w, r)
-	})
-}
-
-//RedirectToRoot checks to see if the request is for anything other than "/". If so, it redirects to "/" since
-//the frontend is a react SPA and handles all the routing client side.
-func RedirectToRoot(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.Redirect(w, r, "/", http.StatusPermanentRedirect)
-		} else {
-			next.ServeHTTP(w, r)
-		}
 	})
 }
