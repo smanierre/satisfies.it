@@ -36,7 +36,7 @@ build-binary:
   stage: build-back
   script:
     - cd backend
-    - CGO_ENABLED=0 GOOS=linux && go build -o typersite ./backend
+    - CGO_ENABLED=0 GOOS=linux && go build -o typersite .
   artifacts:
     paths:
       - backend/typersite
