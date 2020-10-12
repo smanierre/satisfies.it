@@ -3,7 +3,7 @@ image: golang:latest
 stages:
   - build-front
   - populate
-  - build-back
+  - build-docker
   - deploy
 
 build-frontend:
