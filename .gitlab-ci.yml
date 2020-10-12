@@ -26,23 +26,10 @@ parse-files:
       - backend/types.json
 
 build-site:
-  stage: build-back
+  stage: build-docker
   dependencies:
     - parse-files
     - build-frontend
   script:
-    - mkdir prod
-    - mkdir prod/static
-    - cp backend/types.json prod
-    - cp -r frontend/build/* prod/static
-    - cp backend/start.sh prod
-    - cp backend/docker-compose.yml prod
-    - cd backend
-    - CGO_ENABLED=0
-    - GOOS=linux
-    - go build -o ../prod/typer-site .
-    - cd ..
-    - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > prod/.env
-  artifacts:
-    paths:
-      - prod
+    - docker build ./backend
+    - docker push smanierre/typer-site
