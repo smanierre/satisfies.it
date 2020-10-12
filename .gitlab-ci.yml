@@ -1,6 +1,7 @@
 stages:
   - build-front
   - populate
+  - build-back
   - build-docker
   - deploy
 
@@ -29,6 +30,15 @@ parse-files:
   artifacts:
     paths:
       - backend/types.json
+
+build-binary:
+  image: golang:latest
+  stage: build-back
+  script:
+    - CGO_ENABLED=0 GOOS=linux && go build -o typersite ./backend
+  artifacts:
+    paths:
+      - typersite
 
 build-site:
   image: docker
