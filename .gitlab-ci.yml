@@ -4,6 +4,9 @@ stages:
   - build-docker
   - deploy
 
+variables:
+    DOCKER_HOST: tcp://docker:2375
+
 build-frontend:
   image: node:13.4.0
   stage: build-front
@@ -25,12 +28,13 @@ parse-files:
       - backend/types.json
 
 build-site:
-  image: docker:18.06-dind
+  image: docker:dind
   stage: build-docker
   dependencies:
     - parse-files
     - build-frontend
   script:
+    - systemctl start docker
     - docker build ./backend
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site
