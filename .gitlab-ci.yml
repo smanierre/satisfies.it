@@ -7,6 +7,9 @@ stages:
 variables:
     DOCKER_HOST: tcp://docker:2375
 
+services:
+    - docker:dind
+ 
 build-frontend:
   image: node:13.4.0
   stage: build-front
@@ -28,7 +31,7 @@ parse-files:
       - backend/types.json
 
 build-site:
-  image: docker:dind
+  image: docker
   stage: build-docker
   dependencies:
     - parse-files
