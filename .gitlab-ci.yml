@@ -1,5 +1,3 @@
-image: golang:latest
-
 stages:
   - build-front
   - populate
@@ -17,6 +15,7 @@ build-frontend:
       - frontend/build
 
 parse-files:
+  image: golang:latest
   stage: populate
   script:
     - cd backend
@@ -26,6 +25,7 @@ parse-files:
       - backend/types.json
 
 build-site:
+  image: docker
   stage: build-docker
   dependencies:
     - parse-files
