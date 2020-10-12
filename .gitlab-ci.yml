@@ -35,10 +35,11 @@ build-binary:
   image: golang:latest
   stage: build-back
   script:
+    - cd backend
     - CGO_ENABLED=0 GOOS=linux && go build -o typersite ./backend
   artifacts:
     paths:
-      - typersite
+      - backend/typersite
 
 build-site:
   image: docker
