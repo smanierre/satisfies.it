@@ -48,6 +48,7 @@ build-site:
     - parse-files
     - build-frontend
   script:
+    - ls
     - docker build ./backend
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site
