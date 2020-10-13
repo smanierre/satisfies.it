@@ -5,8 +5,8 @@ ENV POSTGRES_USER=${DB_USER}
 ENV POSTGRES_DB=${DB_NAME}
 
 RUN mkdir /prod
-COPY ./backend/typersite /prod
-COPY ./backend/types.json /prod
+COPY typersite /prod
+COPY types.json /prod
 RUN mkdir /prod/static
 COPY ./frontend/build/* /prod/static
 EXPOSE 8443
