@@ -47,6 +47,7 @@ build-site:
   dependencies:
     - parse-files
     - build-frontend
+    - build-binary
   script:
     - mkdir backend/static
     - cp -rp frontend/build/* backend/static
