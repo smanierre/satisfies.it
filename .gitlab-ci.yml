@@ -51,6 +51,6 @@ build-site:
     - mkdir backend/static
     - cp -rp frontend/build/* backend/static
     - cd backend
-    - docker build .
+    - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site
