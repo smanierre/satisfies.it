@@ -48,7 +48,7 @@ build-site:
     - parse-files
     - build-frontend
   script:
-    - mkdir /backend/static
+    - mkdir backend/static
     - cp -rp frontend/build/* backend/static
     - cd backend
     - ls
