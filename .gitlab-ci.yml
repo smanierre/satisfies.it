@@ -49,7 +49,7 @@ build-site:
     - docker:dind
   script:
     - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > backend/.env
-    - cat backend.env
+    - cat backend/.env
     - mkdir backend/static
     - cp -rp frontend/build/* backend/static
     - cd backend
