@@ -11,4 +11,5 @@ COPY .env /prod
 RUN mkdir /prod/static
 COPY static/* /prod/static/
 EXPOSE 8443
-ENTRYPOINT [ "/prod/typersite", "-prod", "-certFile=/certs/fullchain.pem", "-keyFile=/certs/privkey.pem", "-port=8443", "-overwriteDb", "-dataFile=/prod/types.json" ]
+# ENTRYPOINT [ "/prod/typersite", "-prod", "-certFile=/certs/fullchain.pem", "-keyFile=/certs/privkey.pem", "-port=8443", "-overwriteDb", "-dataFile=/prod/types.json" ]
+ENTRYPOINT [ "/bin/sh" ]
