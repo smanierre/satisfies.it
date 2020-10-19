@@ -1,15 +1,10 @@
-FROM postgres
+FROM golang:latest AS builder
+RUN CGO_ENABLED=0 GOOS=linux && go build -o typersite .
 
-ENV POSTGRES_PASSWORD=${DB_PASSWORD}
-ENV POSTGRES_USER=${DB_USER}
-ENV POSTGRES_DB=${DB_NAME}
-
-RUN mkdir /prod
-COPY typersite /prod
-COPY types.json /prod
-COPY .env /prod
-RUN mkdir /prod/static
-COPY static/* /prod/static/
-EXPOSE 8443
-# ENTRYPOINT [ "/prod/typersite", "-prod", "-certFile=/certs/fullchain.pem", "-keyFile=/certs/privkey.pem", "-port=8443", "-overwriteDb", "-dataFile=/prod/types.json" ]
-ENTRYPOINT [ "/bin/sh" ]
+FROM alpine:latest
+COPY --from=builder typersite .
+COPY --from=builder .env .
+COPY backend/types.json .
+RUN mkdir static
+COPY frontend/static/* static/
+ENTRYPOINT [ "typersite", "-prod", "-certFile=/certs/fullchain.pem", "-keyFile=/certs/privkey.pem", "-port=8443", "-overwriteDb" ]

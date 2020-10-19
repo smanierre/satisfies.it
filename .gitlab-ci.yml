@@ -2,8 +2,6 @@ stages:
   - build-front
   - populate
   - build-back
-  - build-docker
-  - deploy
 
 variables:
     DOCKER_HOST: tcp://docker:2375
@@ -28,31 +26,19 @@ parse-files:
     paths:
       - backend/types.json
 
-build-binary:
-  image: golang:latest
-  stage: build-back
-  script:
-    - cd backend
-    - CGO_ENABLED=0 GOOS=linux && go build -o typersite .
-  artifacts:
-    paths:
-      - backend/typersite
-
-build-site:
+build-apptainer:
   image: docker
-  stage: build-docker
+  services: docker:dind
+  stage: build-back
   dependencies:
     - parse-files
     - build-frontend
-    - build-binary
-  services:
-    - docker:dind
   script:
-    - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > backend/.env
-    - cat backend/.env
-    - mkdir backend/static
-    - cp -rp frontend/build/* backend/static
     - cd backend
     - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
-    - docker push smanierre/typer-site
+    - docker push smanierre/typer-site:latest
+  artifacts:
+    paths:
+      - backend/start.sh
+      - backend/docker-compose.yml

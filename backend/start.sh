@@ -1,3 +1,4 @@
 #!/bin/sh
-
-docker run -v /etc/letsencrypt/live/satisfies.it:/certs smanierre/typer-site --name typersite
+docker compose stop
+docker compose pull
+docker compose start
