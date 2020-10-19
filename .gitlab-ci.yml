@@ -28,7 +28,8 @@ parse-files:
 
 build-apptainer:
   image: docker
-  services: docker:dind
+  services:
+    - docker:dind
   stage: build-back
   dependencies:
     - parse-files
