@@ -1,4 +1,5 @@
 FROM golang:latest AS builder
+WORKDIR $GOPATH/src
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux && go build -o typersite .
 
