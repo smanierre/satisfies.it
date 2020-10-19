@@ -1,10 +1,10 @@
 FROM golang:latest AS builder
-RUN ls
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux && go build -o typersite .
 
 FROM alpine:latest
 COPY --from=builder typersite .
-COPY --from=builder .env .
+COPY .env .
 COPY backend/types.json .
 RUN mkdir static
 COPY frontend/static/* static/
