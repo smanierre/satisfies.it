@@ -35,6 +35,8 @@ build-apptainer:
     - parse-files
     - build-frontend
   script:
+    - mkdir backend/static
+    - cp frontend/static/* backend/static/
     - cd backend
     - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
