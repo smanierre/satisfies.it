@@ -1,5 +1,5 @@
 FROM golang:latest AS builder
-COPY backend/* .
+RUN ls
 RUN CGO_ENABLED=0 GOOS=linux && go build -o typersite .
 
 FROM alpine:latest
