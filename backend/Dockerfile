@@ -1,10 +1,10 @@
 FROM golang:latest AS builder
-WORKDIR $GOPATH/src
+WORKDIR /app
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux && go build -o typersite .
 
 FROM alpine:latest
-COPY --from=builder typersite .
+COPY --from=builder /app/typersite .
 COPY .env .
 COPY backend/types.json .
 RUN mkdir static
