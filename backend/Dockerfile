@@ -10,4 +10,4 @@ COPY .env .
 COPY types.json .
 RUN mkdir static
 COPY static/* static/ 
-CMD /app/typersite -prod -certFile=/certs/fullchain.pem -keyFile=/certs/privkey.pem -port=8443 -overwriteDb
+CMD [ "/app/typersite", "-prod", "-certFile=/certs/fullchain.pem", "-keyFile=/certs/privkey.pem", "-port=8443", "-overwriteDb" ]
