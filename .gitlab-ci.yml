@@ -45,3 +45,4 @@ build-apptainer:
     paths:
       - backend/start.sh
       - backend/docker-compose.yml
+      - backend/.env

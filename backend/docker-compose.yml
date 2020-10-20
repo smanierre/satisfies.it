@@ -13,6 +13,8 @@ services:
     # restart:
     #     - unless stopped
   app:
+    depends_on:
+      - "db"
     image: smanierre/typer-site:latest
     ports:
       - "8443:443"
