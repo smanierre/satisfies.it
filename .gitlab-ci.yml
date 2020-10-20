@@ -38,6 +38,7 @@ build-apptainer:
     - mkdir backend/static
     - cp -r frontend/build/* backend/static/
     - cd backend
+    - - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > .env
     - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site:latest
