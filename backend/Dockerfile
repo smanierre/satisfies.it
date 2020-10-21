@@ -7,6 +7,7 @@ FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/typersite .
 COPY .env .
+RUN ls .env
 COPY types.json .
 RUN mkdir static
 COPY static/* static/ 
