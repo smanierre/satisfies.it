@@ -11,4 +11,4 @@ RUN cat .env
 COPY types.json .
 RUN mkdir static
 COPY static/* static/ 
-CMD [ "/app/typersite", "-prod", "-certFile=/etc/letsencrypt/live/satisfies.it/fullchain.pem", "-keyFile=/etc/letsencrypt/live/satisfies.it/privkey.pem", "-port=8443", "-overwriteDb" ]
+CMD [ "/app/typersite", "-prod", "-certFile=/etc/letsencrypt/live/satisfies.it/fullchain.pem", "-keyFile=/etc/letsencrypt/live/satisfies.it/privkey.pem", "-overwriteDb" ]
