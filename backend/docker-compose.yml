@@ -19,6 +19,7 @@ services:
     ports:
       - "8443:443"
     volumes:
-      - /etc/letsencrypt/live/satisfies.it:/certs
+      - /etc/letsencrypt/live/satisfies.it:/etc/letsencrypt/live/satisfies.it:ro
+      - /etc/letsencrypt/archive/satisfies.it:/etc/letsencrypt/archive/satisfies.it:ro
 volumes:
   data_volume:
