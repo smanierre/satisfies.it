@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
@@ -48,6 +49,10 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 	if !fileMatcher.MatchString(r.URL.Path) {
 		http.ServeFile(w, r, "static/index.html")
 	} else {
+		if r.URL.Path[len(r.URL.Path)-3:] == ".js" {
+			w.Header().Set("content-type", "application/javascript")
+			fmt.Println("Writing javascript header")
+		}
 		fileServer.ServeHTTP(w, r)
 	}
 }
