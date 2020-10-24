@@ -1,10 +1,9 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"regexp"
 
 	"gitlab.com/sean.manierre/typer-site/store"
 )
@@ -34,23 +33,23 @@ func (s Server) registerEndpoints() {
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
 	http.Handle("/", http.HandlerFunc(getRoot))
-	http.Handle("/static/", http.HandlerFunc(getStatic))
 }
 
 //getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
 func getRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" && !strings.Contains(r.URL.Path, "/static") && r.URL.Path != "/logo.svg" {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
+	// if r.URL.Path != "/" && !strings.Contains(r.URL.Path, "/static") && r.URL.Path != "/logo.svg" {
+	// 	http.Redirect(w, r, "/", http.StatusFound)
+	// 	return
+	// }
+	// fs := http.FileServer(http.Dir("./static/"))
+	// fs.ServeHTTP(w, r)
+	fileServer := http.FileServer(http.Dir("static"))
+	fileMatcher := regexp.MustCompile(`\.[a-zA-Z]*$`)
+	if !fileMatcher.MatchString(r.URL.Path) {
+		http.ServeFile(w, r, "static/index.html")
+	} else {
+		fileServer.ServeHTTP(w, r)
 	}
-	fs := http.FileServer(http.Dir("./static/"))
-	fs.ServeHTTP(w, r)
-}
-
-func getStatic(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Serving: %s", r.URL.Path)
-	fs := http.FileServer(http.Dir("./static/static/"))
-	fs.ServeHTTP(w, r)
 }
 
 //AllowCorsMiddleware allows CORS requests from any source for development purposes only.
