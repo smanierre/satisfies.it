@@ -33,6 +33,7 @@ func (s Server) registerEndpoints() {
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
 	http.Handle("/", http.HandlerFunc(getRoot))
+	http.Handle("/static", http.HandlerFunc(getStatic))
 }
 
 //getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
@@ -42,6 +43,11 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fs := http.FileServer(http.Dir("./static/"))
+	fs.ServeHTTP(w, r)
+}
+
+func getStatic(w http.ResponseWriter, r *http.Request) {
+	fs := http.FileServer(http.Dir("./static/static/"))
 	fs.ServeHTTP(w, r)
 }
 
