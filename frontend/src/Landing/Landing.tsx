@@ -29,7 +29,7 @@ const Landing: React.FC = () => {
         }
       }}
     >
-      <img src="./logo.svg" alt="Satisfies.it" />
+      <img src="../public/logo.svg" alt="Satisfies.it" />
       <Search placeholder="Search for..." updateQuery={setSearchQuery} />
       <Dropdown setType={setSearchType} />
     </Container>
