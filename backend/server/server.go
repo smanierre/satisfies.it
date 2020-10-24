@@ -42,7 +42,7 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fs := http.FileServer(http.Dir("./static"))
-	http.StripPrefix("/static", fs).ServeHTTP(w, r)
+	fs.ServeHTTP(w, r)
 }
 
 //AllowCorsMiddleware allows CORS requests from any source for development purposes only.
