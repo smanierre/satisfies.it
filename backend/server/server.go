@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -31,7 +32,7 @@ func (s Server) registerEndpoints() {
 		log.Printf("Registering endpoint /api%s\n", k)
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
-	http.Handle("/static/", http.HandlerFunc(getStatic))
+	http.Handle("/static/", http.StripPrefix("/static/", http.HandlerFunc(getStatic)))
 	http.Handle("/", http.HandlerFunc(serveIndex))
 }
 
@@ -46,7 +47,8 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 
 //getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
 func getStatic(w http.ResponseWriter, r *http.Request) {
-	fs := http.FileServer(http.Dir("./static/"))
+	fmt.Printf("Handling: %s\n", r.URL.Path)
+	fs := http.FileServer(http.Dir("static"))
 	fs.ServeHTTP(w, r)
 }
 
