@@ -32,7 +32,7 @@ func (s Server) registerEndpoints() {
 		log.Printf("Registering endpoint /api%s\n", k)
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
-	http.Handle("/static/", http.StripPrefix("/static/", http.HandlerFunc(getStatic)))
+	http.Handle("/static/", http.StripPrefix("/static", http.HandlerFunc(getStatic)))
 	http.Handle("/", http.HandlerFunc(serveIndex))
 }
 
