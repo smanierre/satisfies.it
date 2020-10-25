@@ -3,7 +3,6 @@ package server
 import (
 	"log"
 	"net/http"
-	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/store"
 )
@@ -32,15 +31,21 @@ func (s Server) registerEndpoints() {
 		log.Printf("Registering endpoint /api%s\n", k)
 		http.Handle("/api"+k, http.HandlerFunc(v))
 	}
-	http.Handle("/", http.HandlerFunc(getRoot))
+	http.Handle("/static/", http.HandlerFunc(getStatic))
+	http.Handle("/", http.HandlerFunc(serveIndex))
+}
+
+//serveIndex serves index.html when / is requested, and redirects any other unmatched requests to the home page so the react app can load.
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		http.ServeFile(w, r, "static/index.html")
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 //getRoot handles serving the files for the React SPA frontend and redirects and non-api calls to the home page so the app can load.
-func getRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" && !strings.Contains(r.URL.Path, "/static") && r.URL.Path != "/logo.svg" {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
+func getStatic(w http.ResponseWriter, r *http.Request) {
 	fs := http.FileServer(http.Dir("./static/"))
 	fs.ServeHTTP(w, r)
 }
