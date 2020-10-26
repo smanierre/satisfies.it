@@ -10,10 +10,9 @@ build-frontend:
   image: node:13.4.0
   stage: build-front
   script:
-    - npm install --prefix frontend
-    - npm run build --prefix frontend
-    - cd frontend/build
-    - ls
+    - cd frontend
+    - npm install
+    - npm run build
   artifacts:
     paths:
       - frontend/build
