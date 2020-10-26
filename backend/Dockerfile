@@ -12,5 +12,3 @@ COPY types.json .
 RUN mkdir static
 COPY static static
 CMD [ "/app/typersite", "-prod", "-certFile=/etc/letsencrypt/live/satisfies.it/fullchain.pem", "-keyFile=/etc/letsencrypt/live/satisfies.it/privkey.pem", "-overwriteDb" ]
-
-#FIGURE OUT WHY THE COPY DOESN'T TAKE THE STATIC FOLDER TOO
