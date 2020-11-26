@@ -30,7 +30,8 @@ func main() {
 	dbPassword := flag.String("dbPassword", os.Getenv("DB_PASSWORD"), "The password to use to login to the database. If not provided, the program will exit.")
 	dbName := flag.String("dbName", os.Getenv("DB_NAME"), "The name of the database that should be connected to. Defaults to types.")
 	overwriteDb := flag.Bool("overwriteDb", false, "A boolean flag to specify whether or not the current database should be overwritten with the new data.")
-	prod := flag.Bool("prod", false, "A flag to specify whether or not this is production. Affects usage of ssl.")
+	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl.")
+	dev := flag.Bool("dev", false, "A flag to specify whether or not this is development. If it is, it applies the middleware to allow CORS.")
 	flag.Parse()
 
 	if *populate {
@@ -59,9 +60,12 @@ func main() {
 		log.Fatalf("unable to create store: %s", err.Error())
 	}
 	s := server.NewServer(store)
-	if *prod {
+	if *dev {
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), server.AllowCorsMiddleware(s.ServeMux)))
+	}
+	if *ssl {
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	} else {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), server.AllowCorsMiddleware(s.ServeMux)))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
 	}
 }
