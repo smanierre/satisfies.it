@@ -15,8 +15,8 @@ type Server struct {
 
 var typeStore store.TypeStore
 
-// NewServer returns a server initialized with a TypeStore and using the DefaultServeMux
-func NewServer(store store.TypeStore) Server {
+// New returns a server initialized with a TypeStore and using the DefaultServeMux
+func New(store store.TypeStore) Server {
 	s := Server{
 		ServeMux:  http.DefaultServeMux,
 		TypeStore: store,

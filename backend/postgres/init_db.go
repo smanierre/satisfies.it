@@ -17,7 +17,7 @@ func getExpectedTables() []string {
 
 //InitDB takes in a json file with all the parsed types and returns a populated database.
 //If a database already exists, it will be returned unless the overwrite flag is provided, then the new file will be loaded.
-func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string, jsonPath string, overwrite bool) (*pgxpool.Pool, error) {
+func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string, jsonPath string) (*pgxpool.Pool, error) {
 	var err error
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
@@ -45,6 +45,7 @@ func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string, jsonPath string, 
 			if err != nil {
 				return nil, fmt.Errorf("unable to connect to database \"types\" after creating: %s", err.Error())
 			}
+			db.Close()
 		} else {
 			return nil, err
 		}
@@ -54,15 +55,10 @@ func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string, jsonPath string, 
 	if err != nil {
 		return nil, err
 	}
-	if !overwrite {
-		err = checkDBStructure()
-		if err != nil {
-			return nil, err
-		}
-	}
 
-	if overwrite {
-		//Delete any existing tables and load in the jsonFile
+	structureIntegrity := checkDBStructure()
+	if structureIntegrity != nil {
+		fmt.Println("Database structure incorrect, reloading...")
 		err := loadDb(db, jsonPath)
 		if err == nil {
 			return db, nil

@@ -7,8 +7,8 @@ FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/typersite .
 COPY .env .
-RUN cat .env
 COPY types.json .
 RUN mkdir static
 COPY static static
-CMD [ "/app/typersite", "-overwriteDb" ]
+EXPOSE 80 443
+CMD [ "/app/typersite" ]

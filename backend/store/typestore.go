@@ -29,8 +29,8 @@ type TypeStorePGImpl struct {
 	typeImplementees      map[string][]int64
 }
 
-// NewStore returns an initialized TypeStore with types already retrieved from the database.
-func NewStore() (TypeStore, error) {
+// New returns an initialized TypeStore with types already retrieved from the database.
+func New() (TypeStore, error) {
 	t := TypeStorePGImpl{
 		concreteTypes:         []db.CustomTypeRecord{},
 		interfaces:            []db.CustomTypeRecord{},

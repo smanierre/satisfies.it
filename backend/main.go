@@ -23,14 +23,13 @@ func main() {
 	dataFile := flag.String("dataFile", "types.json", "The datafile to be loaded if overwriteDb is also true. Optional.")
 	certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
 	keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
-	port := flag.Int("port", 443, "Port for the web server to listen on, defaults to 443.")
+	port := flag.Int("port", 80, "Port for the web server to listen on, defaults to 80.")
 	dbHost := flag.String("dbHost", os.Getenv("DB_HOST"), "The hostname or IP of the database host. Defaults to localhost.")
 	dbPort := flag.String("dbPort", os.Getenv("DB_PORT"), "The port the database is listening on. Defaults to 5432.")
 	dbUser := flag.String("dbUser", os.Getenv("DB_USER"), "The user the database should connect as. Defaults to postgres")
 	dbPassword := flag.String("dbPassword", os.Getenv("DB_PASSWORD"), "The password to use to login to the database. If not provided, the program will exit.")
 	dbName := flag.String("dbName", os.Getenv("DB_NAME"), "The name of the database that should be connected to. Defaults to types.")
-	overwriteDb := flag.Bool("overwriteDb", false, "A boolean flag to specify whether or not the current database should be overwritten with the new data.")
-	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl.")
+	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl. If no specific port is provided, port is automatically set to 443")
 	dev := flag.Bool("dev", false, "A flag to specify whether or not this is development. If it is, it applies the middleware to allow CORS.")
 	flag.Parse()
 
@@ -42,28 +41,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	//If overwrite is specified, ensure there is a jsonFile also present to be loaded in and can be opened.
-	if *overwriteDb {
-		file, err := os.Open(*dataFile)
-		if err != nil {
-			log.Fatalf("Please provide a valid data file if you wish to overwrite the database: %s\n", err.Error())
-		}
-		file.Close()
-	}
-
-	_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile, *overwriteDb)
+	_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	store, err := store.NewStore()
+
+	store, err := store.New()
 	if err != nil {
-		log.Fatalf("unable to create store: %s", err.Error())
+		log.Fatalf("unable to create store: %s\n", err.Error())
 	}
-	s := server.NewServer(store)
+	s := server.New(store)
+
 	if *dev {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), server.AllowCorsMiddleware(s.ServeMux)))
 	}
 	if *ssl {
+		if *port == 80 {
+			*port = 443
+		}
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
 	} else {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
