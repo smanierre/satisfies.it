@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gitlab.com/sean.manierre/typer-site/parser"
@@ -41,9 +43,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
-	if err != nil {
-		log.Fatalln(err)
+	attempts := 1
+	for {
+		_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
+		if err == nil {
+			break
+		}
+		// If the db container is being created at the same time as the application container
+		// it takes longer to start up. If the error is the connection being refused, the app
+		// will wait one second then retry. After 5 attempts something else is probably wrong
+		// so the app will exit instead.
+		if !strings.Contains("connection refused", err.Error()) {
+			log.Fatalln(err)
+		}
+		if attempts >= 5 {
+			log.Fatalln(err)
+		}
+		attempts++
+		time.Sleep(time.Duration(1 * time.Second))
 	}
 
 	store, err := store.New()
