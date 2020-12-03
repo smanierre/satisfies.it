@@ -45,6 +45,7 @@ func main() {
 
 	attempts := 1
 	for {
+		log.Println("Attempting to connect to db. Try #:" + fmt.Sprint(attempts))
 		_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
 		if err == nil {
 			break
@@ -53,7 +54,7 @@ func main() {
 		// it takes longer to start up. If the error is the connection being refused, the app
 		// will wait one second then retry. After 5 attempts something else is probably wrong
 		// so the app will exit instead.
-		if !strings.Contains("connection refused", err.Error()) {
+		if !strings.Contains(err.Error(), "connection refused") {
 			log.Fatalln(err)
 		}
 		if attempts >= 5 {
