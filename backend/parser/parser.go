@@ -22,8 +22,8 @@ type Parser struct {
 	fs                    *token.FileSet
 }
 
-//NewParser returns a new Parser.
-func NewParser() *Parser {
+//New returns a new Parser.
+func New() *Parser {
 	return &Parser{
 		Types:                 []CustomType{},
 		methods:               []Method{},
@@ -74,7 +74,7 @@ func (p *Parser) ParseDir(dirpath string) error {
 //ParseAndExportDirectory takes in a directory path and parses all the .go files within it and its children. Once it is done parsing,
 // it then outputs it as types_timestamp.json to be imported once the application is deployed and connected to the db.
 func ParseAndExportDirectory(dirPath string) error {
-	p := NewParser()
+	p := New()
 	if err := p.ParseDir(dirPath); err != nil {
 		return err
 	}

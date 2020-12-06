@@ -18,6 +18,7 @@ type TypeStore interface {
 	GetConcreteTypesByName(string) []db.CustomTypeRecord
 	GetImplementingIDs(int) []int
 	GetImplementeeIDs(int) []int
+	InsertParsedProject(*parser.Parser) error
 }
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
@@ -69,9 +70,6 @@ func (t *TypeStorePGImpl) populateStore() error {
 	}
 	for _, ii := range interfaceImplementers {
 		t.interfaceImplementers[ii.InterfaceName] = ii.Implementers
-		if ii.ID == 4465 {
-			fmt.Println(ii.Implementers)
-		}
 	}
 
 	typeImplementees, err := db.GetTypeImplementees()
@@ -177,6 +175,70 @@ func (t *TypeStorePGImpl) GetImplementeeIDs(id int) []int {
 			ids = append(ids, int(id))
 		}
 		return ids
+	}
+	return nil
+}
+
+//InsertParsedProject takes a type that was parsed from a file and inserts it into the database.
+//This method will take care of inserting all the methods first and resolving any types that
+//implement it or interfaces it implements.
+func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
+	//Insert custom types and methods
+	for _, ct := range p.Types {
+		var methodIDs []int64
+		for _, m := range ct.Methods {
+			id, err := db.InsertMethod(m)
+			if err != nil {
+				return fmt.Errorf("typestore.go-InsertCustomType unable to insert method: %s", err.Error())
+			}
+			methodIDs = append(methodIDs, id)
+		}
+		_, err := db.InsertCustomType(ct, methodIDs)
+		if err != nil {
+			return fmt.Errorf("typestore.go-InsertCustomType unable to insert custom type: %s", err.Error())
+		}
+	}
+
+	//Insert interface implementers
+	var implementingIDs []int64
+	for name, implementers := range p.InterfaceImplementers {
+		implementingIDs = []int64{}
+		//TODO: Make this less shitty
+		for _, i := range implementers {
+			for _, ct := range t.customTypes {
+				if ct.CT.Package == i.Package && ct.CT.Name == i.Name {
+					implementingIDs = append(implementingIDs, ct.ID)
+					break
+				}
+			}
+		}
+		_, err := db.InsertInterfaceImplementers(name, implementingIDs)
+		if err != nil {
+			return err
+		}
+	}
+
+	//Insert interface implementees
+	for name, implementees := range p.TypeImplementees {
+		implementingIDs = []int64{}
+		//TODO: Also make this less shitty
+		for _, ct := range implementees {
+			for _, i := range t.interfaces {
+				if ct.Package == i.CT.Package && ct.Name == i.CT.Name {
+					implementingIDs = append(implementingIDs, i.ID)
+					break
+				}
+			}
+		}
+		_, err := db.InsertTypeImplementee(name, implementingIDs)
+		if err != nil {
+			return err
+		}
+	}
+	//Update the store after inserting into the database.
+	err := t.populateStore()
+	if err != nil {
+		return err
 	}
 	return nil
 }

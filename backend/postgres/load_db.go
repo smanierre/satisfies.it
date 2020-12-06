@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,7 +16,7 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 		return err
 	}
 
-	p := parser.NewParser()
+	p := parser.New()
 	if err := json.NewDecoder(df).Decode(p); err != nil {
 		return err
 	}
@@ -36,19 +35,15 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 	for _, ct := range p.Types {
 		var methodIDs []int64
 		for _, method := range ct.Methods {
-			log.Println("Inserting method: ", method.Name)
-			var lastInsertID int64
-			row := db.QueryRow(context.Background(), insertMethodQuery, method.Name, method.PointerReceiver, method.Receiver, method.Parameters, method.ReturnValues)
-			err := row.Scan(&lastInsertID)
+			log.Printf("Inserting method: %s\n", method.Name)
+			lastInsertID, err := InsertMethod(method)
 			if err != nil {
 				return err
 			}
 			methodIDs = append(methodIDs, lastInsertID)
 		}
-		var lastInsertID int64
-		log.Println("Inserting CustomType: ", ct.Package, ".", ct.Name)
-		row := db.QueryRow(context.Background(), insertCustomTypeQuery, ct.Package, ct.Name, ct.Type, ct.Basetype, methodIDs)
-		err := row.Scan(&lastInsertID)
+		log.Printf("Inserting CustomType: %s.%s\n", ct.Package, ct.Name)
+		lastInsertID, err := InsertCustomType(ct, methodIDs)
 		if err != nil {
 			return err
 		}
@@ -60,8 +55,8 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 		for _, t := range v {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
-		log.Println("Inserting InterfaceImplementer record for interface with name: ", k)
-		_, err := db.Exec(context.Background(), insertInterfaceImplementersQuery, k, typeIDs)
+		log.Printf("Inserting InterfaceImplementer record for interface with name: %s\n", k)
+		_, err := InsertInterfaceImplementers(k, typeIDs)
 		if err != nil {
 			return err
 		}
@@ -72,8 +67,8 @@ func loadDb(db *pgxpool.Pool, dataFile string) error {
 		for _, t := range v {
 			typeIDs = append(typeIDs, typeRecordMap[fmt.Sprintf("%s.%s", t.Package, t.Name)])
 		}
-		log.Println("Inserting TypeImplementee record for type with name: ", k)
-		_, err := db.Exec(context.Background(), insertTypeImplementeeQuery, k, typeIDs)
+		log.Printf("Inserting TypeImplementee record for type with name: %s\n", k)
+		_, err := InsertTypeImplementee(k, typeIDs)
 		if err != nil {
 			return err
 		}

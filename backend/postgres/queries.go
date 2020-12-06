@@ -217,3 +217,54 @@ func GetTypeImplementees() ([]TypeImplementeesRecord, error) {
 	}
 	return ti, nil
 }
+
+//InsertCustomType inserts a custom type into the database and returns the ID of the inserted type. This should only be called
+//after all the methods for the type have been inserted as their IDs get held in the custom type for later use. If an error occurs,
+//it will be returned along with -1 as a value for the id.
+func InsertCustomType(ct parser.CustomType, methodIDs []int64) (int64, error) {
+	row := db.QueryRow(context.Background(), insertCustomTypeQuery, ct.Package, ct.Name, ct.Type, ct.Basetype, methodIDs)
+	var insertedID int64
+	err := row.Scan(&insertedID)
+	if err != nil {
+		return -1, err
+	}
+	return insertedID, nil
+}
+
+//InsertMethod inserts a method into the database and returns the ID of the inserted method. If inserting a CustomType,
+//all methods should be inserted first as their IDs are referenced by the type. If an error is returned, the id returned is -1.
+func InsertMethod(m parser.Method) (int64, error) {
+	row := db.QueryRow(context.Background(), insertMethodQuery, m.Name, m.PointerReceiver, m.Receiver, m.Parameters, m.ReturnValues)
+	var insertedID int64
+	err := row.Scan(&insertedID)
+	if err != nil {
+		return -1, err
+	}
+	return insertedID, nil
+}
+
+//InsertInterfaceImplementers inserts a given interface name into the database along with a list of the IDs of types
+//that implement the interface. The id of the inserted interface/implementers record is returned. If an error occurs, -1 will
+//be returned for the id.
+func InsertInterfaceImplementers(interfaceName string, implementingIDs []int64) (int64, error) {
+	row := db.QueryRow(context.Background(), insertInterfaceImplementersQuery, interfaceName, implementingIDs)
+	var insertedID int64
+	err := row.Scan(&insertedID)
+	if err != nil {
+		return -1, err
+	}
+	return insertedID, nil
+}
+
+//InsertTypeImplementee inserts a given type name into the database along with a list of the IDs of the interfaces
+//that it implements. The id of the inserted type/implementees record is returned. If an error occurs, -1 will be
+//returned for the id.
+func InsertTypeImplementee(typeName string, implementingIDs []int64) (int64, error) {
+	row := db.QueryRow(context.Background(), insertTypeImplementeeQuery, typeName, implementingIDs)
+	var insertedID int64
+	err := row.Scan(&insertedID)
+	if err != nil {
+		return -1, err
+	}
+	return insertedID, nil
+}

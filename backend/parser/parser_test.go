@@ -211,7 +211,7 @@ func TestParse(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.Name, func(t *testing.T) {
-			p := NewParser()
+			p := New()
 			p.ParseFile(tt.Filepath)
 			if !reflect.DeepEqual(p.Types, tt.ExpectedTypes) {
 				for _, Type := range p.Types {

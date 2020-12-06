@@ -12,7 +12,7 @@ type Type int
 const (
 	//Interface is used to describe what a CustomType object is.
 	Interface Type = iota
-	//ConcreteType is used to descript what a CustomType object is.
+	//ConcreteType is used to describe what a CustomType object is.
 	ConcreteType
 )
 
