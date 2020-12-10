@@ -4,7 +4,7 @@ stages:
   - build-back
 
 variables:
-    DOCKER_HOST: tcp://docker:2375
+  DOCKER_HOST: tcp://docker:2375
 
 build-frontend:
   image: node:13.4.0
@@ -45,6 +45,5 @@ build-apptainer:
     - docker push smanierre/typer-site:latest
   artifacts:
     paths:
-      - backend/start.sh
       - backend/docker-compose.yml
       - backend/.env

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/jackc/pgx/v4"
@@ -22,33 +23,35 @@ func InitDB(dbHost, dbPort, dbUser, dbPassword, dbName string, jsonPath string) 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 	check, err := pgx.Connect(context.Background(), psqlInfo)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "\"types\" does not exist") {
 		return nil, err
 	}
-	if err := check.Ping(context.Background()); err != nil {
-		if strings.Contains(err.Error(), fmt.Sprintf("does not exist")) {
-			//Database doesn't exist, create it.
-			tempInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", dbHost, dbPort, dbUser, dbPassword)
-			tempDb, err := pgx.Connect(context.Background(), tempInfo)
-			if err != nil {
-				return nil, fmt.Errorf("unable to connect to database \"postgres\": %s", err.Error())
-			}
-			if err := tempDb.Ping(context.Background()); err != nil {
-				return nil, fmt.Errorf("unable to ping \"postgres\" database: %s", err.Error())
-			}
-			_, err = tempDb.Exec(context.Background(), createDatabaseQuery)
-			if err != nil {
-				return nil, fmt.Errorf("error creating database \"types\": %s", err.Error())
-			}
-			tempDb.Close(context.Background())
-			db, err = pgxpool.Connect(context.Background(), psqlInfo)
-			if err != nil {
-				return nil, fmt.Errorf("unable to connect to database \"types\" after creating: %s", err.Error())
-			}
-			db.Close()
-		} else {
-			return nil, err
+	//The database "types" doesn't exist if the connection is nil. Create it.
+	if check == nil {
+		log.Println("Creating database \"types\"")
+		//Database doesn't exist, create it.
+		tempInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", dbHost, dbPort, dbUser, dbPassword)
+		tempDb, err := pgx.Connect(context.Background(), tempInfo)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to database \"postgres\": %s", err.Error())
 		}
+		if err := tempDb.Ping(context.Background()); err != nil {
+			return nil, fmt.Errorf("unable to ping \"postgres\" database: %s", err.Error())
+		}
+		_, err = tempDb.Exec(context.Background(), createDatabaseQuery)
+		if err != nil {
+			return nil, fmt.Errorf("error creating database \"types\": %s", err.Error())
+		}
+		tempDb.Close(context.Background())
+		db, err = pgxpool.Connect(context.Background(), psqlInfo)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to database \"types\" after creating: %s", err.Error())
+		}
+		db.Close()
+	}
+	check, err = pgx.Connect(context.Background(), psqlInfo)
+	if err := check.Ping(context.Background()); err != nil {
+		return nil, err
 	}
 	check.Close(context.Background())
 	db, err = pgxpool.Connect(context.Background(), psqlInfo)

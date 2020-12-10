@@ -2,11 +2,16 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
+	"gitlab.com/sean.manierre/typer-site/parser"
 	db "gitlab.com/sean.manierre/typer-site/postgres"
 )
 
@@ -17,6 +22,7 @@ var endpoints = map[string]func(http.ResponseWriter, *http.Request){
 	"/type/":         getSingleTypeByID,
 	"/implementers/": getImplementingTypes,
 	"/implementees/": getImplementedInterfaces,
+	"/parse":         postProjectParse,
 }
 
 func getAllInterfaces(w http.ResponseWriter, r *http.Request) {
@@ -157,4 +163,37 @@ func getImplementedInterfaces(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(returnJSON)
+}
+
+func postProjectParse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	repoURL := r.URL.Query().Get("repo")
+	tempdir := fmt.Sprintf("temp-%d", time.Now().UnixNano())
+	log.Printf("Cloning repo from: %s into temp directory %s\n", repoURL, tempdir)
+	os.Mkdir(tempdir, 0777)
+	cloneCMD := exec.Command("git", "clone", repoURL, tempdir)
+	cloneCMD.Stderr = os.Stderr
+	err := cloneCMD.Start()
+	time.Sleep(1 * time.Second)
+	if err != nil {
+		fmt.Fprintf(w, "Error when cloning repository from %s", repoURL)
+		log.Printf("Error when cloning repository: %s\n", err)
+		log.Printf("Removing temporary directory: %s\n", tempdir)
+		os.RemoveAll(tempdir)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	cloneCMD.Wait()
+	p := parser.New()
+	p.ParseDir(tempdir)
+	p.ResolveImplementations()
+	err = typeStore.InsertParsedProject(p)
+	if err != nil {
+		log.Printf("error when inserting parsed project: %s\n", err.Error())
+	}
+	log.Printf("Removing temporary directory: %s\n", tempdir)
+	os.RemoveAll(tempdir)
 }

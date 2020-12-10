@@ -45,7 +45,7 @@ func main() {
 
 	attempts := 1
 	for {
-		log.Println("Attempting to connect to db. Try #:" + fmt.Sprint(attempts))
+		log.Println("Attempting to connect to db. Try #" + fmt.Sprint(attempts))
 		_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
 		if err == nil {
 			break
@@ -63,6 +63,7 @@ func main() {
 		attempts++
 		time.Sleep(time.Duration(1 * time.Second))
 	}
+	log.Println("*****Successfully connected to the database*****")
 
 	store, err := store.New()
 	if err != nil {

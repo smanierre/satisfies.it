@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
@@ -199,6 +200,14 @@ func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
 		}
 	}
 
+	//The store is used when inserting the implementers and implementees so it needs to be up to date
+	//with the types and methods that were just inserted.
+	log.Println("Updating typestore")
+	err := t.populateStore()
+	if err != nil {
+		return fmt.Errorf("typestore.go-InsertCustomType unable to update typestore: %s", err.Error())
+	}
+
 	//Insert interface implementers
 	var implementingIDs []int64
 	for name, implementers := range p.InterfaceImplementers {
@@ -236,7 +245,7 @@ func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
 		}
 	}
 	//Update the store after inserting into the database.
-	err := t.populateStore()
+	err = t.populateStore()
 	if err != nil {
 		return err
 	}
