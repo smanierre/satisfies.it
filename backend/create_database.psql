@@ -1,0 +1,41 @@
+CREATE DATABASE types;
+
+\c types
+
+CREATE TABLE IF NOT EXISTS custom_types(
+     id SERIAL PRIMARY KEY, 
+     package VARCHAR(255), 
+     name VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS concrete_types(
+     id INTEGER, 
+     pointer BOOLEAN, 
+     base_type VARCHAR(255), 
+     CONSTRAINT fk_custom_type FOREIGN KEY(id) REFERENCES custom_types(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS methods(
+     id serial PRIMARY KEY,
+     name VARCHAR(255), 
+     parameters VARCHAR(255)[], 
+     return_values VARCHAR(255)[],
+     receiver_id INTEGER, 
+     CONSTRAINT fk_type FOREIGN KEY(receiver_id) REFERENCES custom_types(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS interface_implementers(
+     interface_id INTEGER,
+     implementer_id INTEGER, 
+     CONSTRAINT fk_interface_id FOREIGN KEY(interface_id) REFERENCES custom_types(id) ON DELETE CASCADE,
+     CONSTRAINT fk_type_id FOREIGN KEY(implementer_id) REFERENCES custom_types(id) ON DELETE SET NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS type_implementees(
+     type_id INTEGER,
+     implementee_id INTEGER, 
+     CONSTRAINT fk_type_id FOREIGN KEY(type_id) REFERENCES custom_types(id) ON DELETE CASCADE,
+     CONSTRAINT fk_interface_id FOREIGN KEY(implementee_id) REFERENCES custom_types(id) ON DELETE SET NULL
+);

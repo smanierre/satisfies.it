@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Open+Sans|Roboto&display=swap"
+      rel="stylesheet"
+    />
+    <link href="/static/css/normalize.css" rel="stylesheet" />
+    <link href="/static/css/base.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>Satisfies.it</title>
+  </head>
+  <body>
+    {{template "header" .}}
+    {{$homeURL := .HomeURL}}
+    <div class="single-type-grid">
+        <h1 class="type-title">{{.Interface.Package}}.{{.Interface.Name}}</h1>
+        <div class="type-info">
+            <h2 class="methods-title">Methods</h2>
+            <ul class="methods-list">
+              {{range .Interface.Methods}}
+                <li>{{formatMethod .}}</li>
+              {{end}}
+            </ul>
+            <h2 class="implement-title">Implementers</h2>
+            <ul class="implement-list">
+              {{range .Implementers}}
+                <li><a href="{{$homeURL}}/concrete/{{.ID}}">{{if .Pointer}}*{{end}}{{.Package}}.{{.Name}}</a></li>
+              {{end}}
+            </ul>
+        </div>
+    </div>
+  </body>
+</html>

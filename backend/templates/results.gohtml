@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Open+Sans|Roboto&display=swap"
+      rel="stylesheet"
+    />
+    <link href="/static/css/normalize.css" rel="stylesheet" />
+    <link href="/static/css/base.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>Satisfies.it</title>
+  </head>
+  <body>
+  {{template "header" .}}
+  {{$homeURL := .HomeURL}}
+    <div class="results-grid">
+    <div class="flex-container">
+        <h1 class="results-title">Search results for: {{.ResultQuery}}</h1>
+        <div class="flex-heading-container">
+            <h2>{{len .Results}} results</h2>
+            <span class="results-sort">
+                <h2>Sort by: </h2>
+                <select class="sort-selector">
+                    <option value="type-name">Type Name</option>
+                    <option value="package-name">Package Name</option>
+                    <option value="base-type">Base Type</option>
+                </select>
+            </span>
+        </div>
+        <ul class="results-list">
+            {{range .Results}}
+                {{$type := ""}}
+                {{if ne .BaseType "interface"}}
+                    {{$type = "concrete"}}
+                {{else}}
+                    {{$type = "interface"}}
+                {{end}}
+                <li class="result-item" data-name="{{.Name}}" data-package="{{.Package}}" data-basetype="{{.BaseType}}">
+                    <a href="{{$homeURL}}/{{$type}}/{{.ID}}">
+                        <h3>
+                            {{if .Pointer}}
+                                *{{.Package}}.{{.Name}}
+                            {{else}}
+                                {{.Package}}.{{.Name}}
+                            {{end}}
+                        </h3>
+                    </a>
+                    <h4>Base Type: {{.BaseType}}</h4>
+                </li>
+            {{end}}
+        </ul>
+    </div>
+</div>
+    <script src="/static/js/sort_results.js"></script>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Open+Sans|Roboto&display=swap"
+      rel="stylesheet"
+    />
+    <link href="/static/css/normalize.css" rel="stylesheet" />
+    <link href="/static/css/base.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>Satisfies.it</title>
+  </head>
+  <body>
+  {{template "header" .}}
+  <div class="main-grid">
+    <img class="gopher" src="/static/images/gopher.png" alt="Gopher putting a square peg in a round hole">
+    <form class="search-form" action="/types" method="POST">
+      <input name="typeQuery" class="search-box" type="text" placeholder="Search for types or interfaces">
+      <input class="search-submit" type="submit" value="Search">
+    </form>
+  </div>
+  </body>
+</html>

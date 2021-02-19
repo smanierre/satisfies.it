@@ -2,252 +2,368 @@ package store
 
 import (
 	"fmt"
-	"log"
-	"strings"
+	"go/types"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
 	db "gitlab.com/sean.manierre/typer-site/postgres"
+	"gitlab.com/sean.manierre/typer-site/util"
 )
+
+//TODO: REDO ALL COMMENTS ON EXPORTED TYPES AND METHODS
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
-	GetInterfaces() []db.CustomTypeRecord
-	GetInterfaceByID(int) db.CustomTypeRecord
-	GetInterfacesByName(string) []db.CustomTypeRecord
-	GetConcreteTypes() []db.CustomTypeRecord
-	GetConcreteTypeByID(int) db.CustomTypeRecord
-	GetConcreteTypesByName(string) []db.CustomTypeRecord
-	GetImplementingIDs(int) []int
-	GetImplementeeIDs(int) []int
+	GetInterfaces() ([]Interface, error)
+	GetInterfaceByID(int64) (Interface, error)
+	GetInterfacesByName(string) ([]Interface, error)
+	GetConcreteTypes() ([]ConcreteType, error)
+	GetConcreteTypeByID(int64) (ConcreteType, error)
+	GetConcreteTypesByName(string) ([]ConcreteType, error)
+	GetImplementingIDs(int64) ([]int64, error)
+	GetImplementeeIDs(int64) ([]int64, error)
 	InsertParsedProject(*parser.Parser) error
 }
 
+//Interface represents an interface and all of its methods.
+type Interface struct {
+	ID      int64    `json:"id"`
+	Package string   `json:"package"`
+	Name    string   `json:"name"`
+	Methods []Method `json:"methods"`
+}
+
+//ConcreteType represents a concrete type and all of its methods.
+type ConcreteType struct {
+	ID       int64    `json:"id"`
+	Package  string   `json:"package"`
+	Name     string   `json:"name"`
+	Pointer  bool     `json:"pointer"`
+	BaseType string   `json:"base_type"`
+	Methods  []Method `json:"methods"`
+}
+
+//Method represents a method belonging to either an interface or a concrete type
+type Method struct {
+	ID           int64    `json:"id"`
+	Name         string   `json:"name"`
+	Parameters   []string `json:"parameters"`
+	ReturnValues []string `json:"return_values"`
+}
+
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
-type TypeStorePGImpl struct {
-	customTypes           []db.CustomTypeRecord
-	interfaces            []db.CustomTypeRecord
-	concreteTypes         []db.CustomTypeRecord
-	interfaceImplementers map[string][]int64
-	typeImplementees      map[string][]int64
+type TypeStorePGImpl struct{}
+
+// New returns a new TypeStore that can query the database.
+func New() TypeStore {
+	return &TypeStorePGImpl{}
 }
 
-// New returns an initialized TypeStore with types already retrieved from the database.
-func New() (TypeStore, error) {
-	t := TypeStorePGImpl{
-		concreteTypes:         []db.CustomTypeRecord{},
-		interfaces:            []db.CustomTypeRecord{},
-		customTypes:           []db.CustomTypeRecord{},
-		interfaceImplementers: map[string][]int64{},
-		typeImplementees:      map[string][]int64{},
-	}
-	err := t.populateStore()
+// GetInterfaces returns a slice of Interfaces containing all the interfaces in the database.
+func (t *TypeStorePGImpl) GetInterfaces() ([]Interface, error) {
+	interfaces, err := db.GetInterfaces()
+	ifaces := []Interface{}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error when retreiving interfaces from the database: %s", err.Error())
 	}
-	return &t, nil
+	for _, i := range interfaces {
+		methods, err := getMethodsofParent(i.ID, db.Interface)
+		if err != nil {
+			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+		}
+		ifaces = append(ifaces, Interface{
+			ID:      i.ID,
+			Package: i.Package,
+			Name:    i.Name,
+			Methods: methods,
+		})
+	}
+	return ifaces, nil
 }
 
-func (t *TypeStorePGImpl) populateStore() error {
-	types, err := db.GetCustomTypes()
+// GetInterfaceByID returns an Interface whose ID matches supplied ID.
+func (t *TypeStorePGImpl) GetInterfaceByID(id int64) (Interface, error) {
+	ir, err := db.GetInterfaceByID(id)
 	if err != nil {
-		return err
+		return Interface{}, fmt.Errorf("error when retreiving interface by ID from the database: %s", err.Error())
 	}
-	t.customTypes = types
-	interfaces := []db.CustomTypeRecord{}
-	concreteTypes := []db.CustomTypeRecord{}
-	for _, t := range types {
-		if t.CT.Type == parser.Interface {
-			interfaces = append(interfaces, t)
-			continue
-		}
-		concreteTypes = append(concreteTypes, t)
+	iface := Interface{
+		ID:      ir.ID,
+		Package: ir.Package,
+		Name:    ir.Name,
+		Methods: []Method{},
 	}
-	t.interfaces = interfaces
-	t.concreteTypes = concreteTypes
-
-	interfaceImplementers, err := db.GetInterfaceImplementers()
+	methods, err := getMethodsofParent(ir.ID, db.Interface)
 	if err != nil {
-		return err
+		return Interface{}, fmt.Errorf("error when getting methods of parent: %s", err.Error())
 	}
-	for _, ii := range interfaceImplementers {
-		t.interfaceImplementers[ii.InterfaceName] = ii.Implementers
-	}
+	iface.Methods = methods
+	return iface, nil
+}
 
-	typeImplementees, err := db.GetTypeImplementees()
+//GetInterfacesByName returns a list of interfaces with the given name. If the package is included
+//e.g. `io.Writer`, the results are limited to the specified package.
+func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) {
+	interfaceRecords, err := db.GetInterfacesByName(name)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error when retreiving interfaces by name from the database: %s", err.Error())
 	}
-	for _, ti := range typeImplementees {
-		t.typeImplementees[ti.TypeName] = ti.Implementees
+	interfaces := []Interface{}
+	for _, i := range interfaceRecords {
+		methods, err := getMethodsofParent(i.ID, db.Interface)
+		if err != nil {
+			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+		}
+		interfaces = append(interfaces, Interface{
+			ID:      i.ID,
+			Package: i.Package,
+			Name:    i.Name,
+			Methods: methods,
+		})
 	}
-
-	return nil
+	return interfaces, nil
 }
 
-// GetInterfaces returns a slice of TypeRecords containing all the interfaces in the store.
-func (t *TypeStorePGImpl) GetInterfaces() []db.CustomTypeRecord {
-	return t.interfaces
+// GetConcreteTypes returns a slice of ConcreteTypes containing all the concrete types in the database.
+func (t *TypeStorePGImpl) GetConcreteTypes() ([]ConcreteType, error) {
+	types, err := db.GetConcreteTypes()
+	if err != nil {
+		return nil, fmt.Errorf("error when retreiving concrete types from the database: %s", err.Error())
+	}
+	concreteTypes := []ConcreteType{}
+	for _, ct := range types {
+		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
+		if err != nil {
+			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+		}
+		concreteTypes = append(concreteTypes, ConcreteType{
+			ID:       ct.ID,
+			Package:  ct.Package,
+			Name:     ct.Name,
+			Pointer:  ct.Pointer,
+			BaseType: ct.BaseType,
+			Methods:  methods,
+		})
+	}
+	return concreteTypes, nil
 }
 
-// GetInterfaceByID returns a types.ConcreteTypeRecord matching the id if it exists and is an interface.
-func (t *TypeStorePGImpl) GetInterfaceByID(id int) db.CustomTypeRecord {
-	for _, v := range t.interfaces {
-		if v.ID == int64(id) {
-			return v
-		}
+// GetConcreteTypeByID returns a ConcreteType matching the id if it exists.
+func (t *TypeStorePGImpl) GetConcreteTypeByID(id int64) (ConcreteType, error) {
+	ct, err := db.GetConcreteTypeByID(id)
+	if err != nil {
+		return ConcreteType{}, fmt.Errorf("error when retreiving concrete type from database: %s", err.Error())
 	}
-	return db.CustomTypeRecord{}
+	methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
+	if err != nil {
+		return ConcreteType{}, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+	}
+	return ConcreteType{
+		ID:       ct.ID,
+		Package:  ct.Package,
+		Name:     ct.Name,
+		Pointer:  ct.Pointer,
+		BaseType: ct.BaseType,
+		Methods:  methods,
+	}, nil
 }
 
-//GetInterfacesByName returns a list of interfaces with the given name. Note, don't include the package in the name e.g. Writer, not io.Writer
-func (t *TypeStorePGImpl) GetInterfacesByName(name string) []db.CustomTypeRecord {
-	var interfaces []db.CustomTypeRecord
-	pkg := false
-	if strings.Index(name, ".") != -1 {
-		pkg = true
+//GetConcreteTypesByName returns a type with the given name. If the package is specified e.g. `io.Writer`, the results
+//are limited to the specified package.
+func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, error) {
+	typeRecords, err := db.GetConcreteTypesByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("error when retreiving concrete types by name from the database: %s", err.Error())
 	}
-	for _, v := range t.interfaces {
-		interfaceName := strings.ToLower(v.CT.Name)
-		if pkg {
-			interfaceName = fmt.Sprintf("%s.%s", strings.ToLower(v.CT.Package), interfaceName)
+	concreteTypes := []ConcreteType{}
+	for _, ct := range typeRecords {
+		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
+		if err != nil {
+			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
 		}
-		if strings.Contains(strings.ToLower(interfaceName), strings.ToLower(name)) {
-			interfaces = append(interfaces, v)
-		}
+		concreteTypes = append(concreteTypes, ConcreteType{
+			ID:       ct.ID,
+			Package:  ct.Package,
+			Name:     ct.Name,
+			Pointer:  ct.Pointer,
+			BaseType: ct.BaseType,
+			Methods:  methods,
+		})
 	}
-	return interfaces
-}
-
-// GetConcreteTypes returns a slice of TypeRecords containing all the structs in the store.
-func (t *TypeStorePGImpl) GetConcreteTypes() []db.CustomTypeRecord {
-	return t.concreteTypes
-}
-
-// GetConcreteTypeByID returns a types.ConcreteTypeRecord matching the id if it exists and is a struct.
-func (t *TypeStorePGImpl) GetConcreteTypeByID(id int) db.CustomTypeRecord {
-	for _, v := range t.concreteTypes {
-		if v.ID == int64(id) {
-			return v
-		}
-	}
-	return db.CustomTypeRecord{}
-}
-
-//GetConcreteTypesByName returns a type with the given name as long as it isn't an interface
-func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) []db.CustomTypeRecord {
-	var types []db.CustomTypeRecord
-	pkg := false
-	if strings.Index(name, ".") != -1 {
-		pkg = true
-	}
-	for _, v := range t.concreteTypes {
-		typeName := strings.ToLower(v.CT.Name)
-		if pkg {
-			typeName = fmt.Sprintf("%s.%s", strings.ToLower(v.CT.Package), typeName)
-		}
-		if strings.Contains(typeName, strings.ToLower(name)) {
-			types = append(types, v)
-		}
-	}
-	return types
+	return concreteTypes, nil
 }
 
 //GetImplementingIDs returns the id of each type that implements the given interface.
-func (t *TypeStorePGImpl) GetImplementingIDs(id int) []int {
-	iface := t.GetInterfaceByID(id)
-	val, ok := t.interfaceImplementers[fmt.Sprintf("%s.%s", iface.CT.Package, iface.CT.Name)]
-	if ok {
-		ids := []int{}
-		for _, id := range val {
-			ids = append(ids, int(id))
-		}
-		return ids
+func (t *TypeStorePGImpl) GetImplementingIDs(id int64) ([]int64, error) {
+	ids, err := db.GetInterfaceImplementersByInterfaceID(id)
+	if err != nil {
+		return nil, fmt.Errorf("error when retreiving implementer IDs from database: %s", err.Error())
 	}
-	return nil
+	return ids, nil
 }
 
 //GetImplementeeIDs returns the id of each interface that is implemented by the given type.
-func (t *TypeStorePGImpl) GetImplementeeIDs(id int) []int {
-	ct := t.GetConcreteTypeByID(id)
-	val, ok := t.typeImplementees[fmt.Sprintf("%s.%s", ct.CT.Package, ct.CT.Name)]
-	if ok {
-		ids := []int{}
-		for _, id := range val {
-			ids = append(ids, int(id))
-		}
-		return ids
+func (t *TypeStorePGImpl) GetImplementeeIDs(id int64) ([]int64, error) {
+	ids, err := db.GetTypeImplementeesByTypeID(id)
+	if err != nil {
+		return nil, fmt.Errorf("error when retreiving implentee IDs from database: %s", err.Error())
 	}
-	return nil
+	return ids, nil
 }
 
 //InsertParsedProject takes a type that was parsed from a file and inserts it into the database.
 //This method will take care of inserting all the methods first and resolving any types that
 //implement it or interfaces it implements.
 func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
-	//Insert custom types and methods
-	for _, ct := range p.Types {
-		var methodIDs []int64
-		for _, m := range ct.Methods {
-			id, err := db.InsertMethod(m)
-			if err != nil {
-				return fmt.Errorf("typestore.go-InsertCustomType unable to insert method: %s", err.Error())
-			}
-			methodIDs = append(methodIDs, id)
-		}
-		_, err := db.InsertCustomType(ct, methodIDs)
+	//Insert concrete types and methods
+	for _, ct := range p.ConcreteTypes {
+		id, err := db.InsertConcreteType(ct)
 		if err != nil {
-			return fmt.Errorf("typestore.go-InsertCustomType unable to insert custom type: %s", err.Error())
+			return fmt.Errorf("error when inserting custom type into the database: %s", err.Error())
+		}
+		var tn *types.Named
+		switch ct.(type) {
+		case *types.Named:
+			tn = ct.(*types.Named)
+		case *types.Pointer:
+			tn = ct.(*types.Pointer).Elem().(*types.Named)
+		}
+		for i := 0; i < tn.NumMethods(); i++ {
+			method := tn.Method(i)
+			//Skip any unexported methods as they aren't relevant to what is being done with this project.
+			if !util.StartsWithUppercase(method.Name()) {
+				continue
+			}
+			_, err := db.InsertMethod(method, id)
+			if err != nil {
+				return fmt.Errorf("error when inserting concrete type method into database: %s", err.Error())
+			}
 		}
 	}
-
-	//The store is used when inserting the implementers and implementees so it needs to be up to date
-	//with the types and methods that were just inserted.
-	log.Println("Updating typestore")
-	err := t.populateStore()
-	if err != nil {
-		return fmt.Errorf("typestore.go-InsertCustomType unable to update typestore: %s", err.Error())
+	//Insert interfaces and methods
+	for _, i := range p.Interfaces {
+		id, err := db.InsertInterface(i)
+		if err != nil {
+			return fmt.Errorf("error when inserting interface into the database: %s", err.Error())
+		}
+		ti, ok := i.Underlying().(*types.Interface)
+		if !ok {
+			return fmt.Errorf("error when casting underlying type of %v to *types.Interface", i)
+		}
+		for j := 0; j < ti.NumMethods(); j++ {
+			method := ti.Method(j)
+			//Skip any unexported methods as they aren't relevant to what is being done with this project.
+			if !util.StartsWithUppercase(method.Name()) {
+				continue
+			}
+			_, err := db.InsertMethod(ti.Method(j), id)
+			if err != nil {
+				return fmt.Errorf("error when inserting interface method into database: %s", err.Error())
+			}
+		}
 	}
-
+	//Get all concrete types and interfaces so we have the IDs on hand without hitting the database
+	//a lot for inserting the implementer implementee mappings.
+	concreteTypes, err := db.GetConcreteTypes()
+	if err != nil {
+		return fmt.Errorf("error when retrieving all concrete types from the database: %s", err.Error())
+	}
+	interfaces, err := db.GetInterfaces()
+	if err != nil {
+		return fmt.Errorf("error when retrieving all interfaces from the database: %s", err.Error())
+	}
 	//Insert interface implementers
-	var implementingIDs []int64
-	for name, implementers := range p.InterfaceImplementers {
-		implementingIDs = []int64{}
-		//TODO: Make this less shitty
-		for _, i := range implementers {
-			for _, ct := range t.customTypes {
-				if ct.CT.Package == i.Package && ct.CT.Name == i.Name {
-					implementingIDs = append(implementingIDs, ct.ID)
+	for iface, implementers := range p.Implementers {
+		tn, ok := iface.(*types.Named)
+		if !ok {
+			return fmt.Errorf("error when casting %v to *types.Named for interface being implemented", iface)
+		}
+		var ifaceID int64
+		//Get the ID for the interface
+		for _, i := range interfaces {
+			if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
+				ifaceID = i.ID
+				break
+			}
+		}
+		//Get the ID for each implementing type
+		var typeID int64
+		for _, implementer := range implementers {
+			var tn *types.Named
+			switch implementer.(type) {
+			case *types.Named:
+				tn = implementer.(*types.Named)
+			case *types.Pointer:
+				tn = implementer.(*types.Pointer).Elem().(*types.Named)
+			default:
+				return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", implementer)
+			}
+			for _, typ := range concreteTypes {
+				if tn.Obj().Pkg().Name() == typ.Package && tn.Obj().Name() == typ.Name {
+					typeID = typ.ID
 					break
 				}
 			}
-		}
-		_, err := db.InsertInterfaceImplementers(name, implementingIDs)
-		if err != nil {
-			return err
+			err := db.InsertInterfaceImplementers(ifaceID, typeID)
+			if err != nil {
+				return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+			}
 		}
 	}
 
 	//Insert interface implementees
-	for name, implementees := range p.TypeImplementees {
-		implementingIDs = []int64{}
-		//TODO: Also make this less shitty
-		for _, ct := range implementees {
-			for _, i := range t.interfaces {
-				if ct.Package == i.CT.Package && ct.Name == i.CT.Name {
-					implementingIDs = append(implementingIDs, i.ID)
+	for typ, implementees := range p.Implementees {
+		var tn *types.Named
+		switch typ.(type) {
+		case *types.Named:
+			tn = typ.(*types.Named)
+		case *types.Pointer:
+			tn = typ.(*types.Pointer).Elem().(*types.Named)
+		default:
+			return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", typ)
+		}
+		var typeID int64
+		//Get the ID for the type
+		for _, ct := range concreteTypes {
+			if tn.Obj().Pkg().Name() == ct.Package && tn.Obj().Name() == ct.Name {
+				typeID = ct.ID
+				break
+			}
+		}
+		//Get the ID for each implemented interface
+		var ifaceID int64
+		for _, implementee := range implementees {
+			tn, ok := implementee.(*types.Named)
+			if !ok {
+				return fmt.Errorf("error when casting %v to *types.Named", implementee)
+			}
+			for _, i := range interfaces {
+				if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
+					ifaceID = i.ID
 					break
 				}
 			}
+			err := db.InsertTypeImplementee(typeID, ifaceID)
+			if err != nil {
+				return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+			}
 		}
-		_, err := db.InsertTypeImplementee(name, implementingIDs)
-		if err != nil {
-			return err
-		}
-	}
-	//Update the store after inserting into the database.
-	err = t.populateStore()
-	if err != nil {
-		return err
 	}
 	return nil
+}
+
+func getMethodsofParent(parentID int64, parentType db.ReceiverType) ([]Method, error) {
+	methods, err := db.GetMethodsByParentID(parentID)
+	if err != nil {
+		return nil, fmt.Errorf("error when retreiving methods by parent id from database: %s", err.Error())
+	}
+	ms := []Method{}
+	for _, m := range methods {
+		ms = append(ms, Method{
+			ID:           m.ID,
+			Name:         m.Name,
+			Parameters:   m.Parameters,
+			ReturnValues: m.ReturnValues,
+		})
+	}
+	return ms, nil
 }

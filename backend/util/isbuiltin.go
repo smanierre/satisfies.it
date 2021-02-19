@@ -21,7 +21,10 @@ var builtinTypes = []string{
 	"complex64",
 	"complex128",
 	"error",
+	"chan",
 }
+
+type Test []byte
 
 //IsBuiltinType takes a type name string and returns a boolean indicating whether or not it is a builtin Go type
 func IsBuiltinType(s string) bool {

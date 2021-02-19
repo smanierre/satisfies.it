@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -16,39 +17,35 @@ import (
 	"gitlab.com/sean.manierre/typer-site/store"
 )
 
+//go:embed templates/*
+var templateDir embed.FS
+
+//go:embed static
+var staticDir embed.FS
+
 func main() {
-
 	godotenv.Load()
-
-	populate := flag.Bool("populate", false, "Set to true if running during build to create a json file to load in production")
-	goSrc := flag.String("goSrc", "/usr/local/go/src", "This is the location of the root of the go files to parse e.g. /usr/local/go/src")
-	dataFile := flag.String("dataFile", "types.json", "The datafile to be loaded if overwriteDb is also true. Optional.")
 	certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
 	keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
-	port := flag.Int("port", 80, "Port for the web server to listen on, defaults to 80.")
 	dbHost := flag.String("dbHost", os.Getenv("DB_HOST"), "The hostname or IP of the database host. Defaults to localhost.")
 	dbPort := flag.String("dbPort", os.Getenv("DB_PORT"), "The port the database is listening on. Defaults to 5432.")
 	dbUser := flag.String("dbUser", os.Getenv("DB_USER"), "The user the database should connect as. Defaults to postgres")
 	dbPassword := flag.String("dbPassword", os.Getenv("DB_PASSWORD"), "The password to use to login to the database. If not provided, the program will exit.")
 	dbName := flag.String("dbName", os.Getenv("DB_NAME"), "The name of the database that should be connected to. Defaults to types.")
 	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl. If no specific port is provided, port is automatically set to 443")
-	dev := flag.Bool("dev", false, "A flag to specify whether or not this is development. If it is, it applies the middleware to allow CORS.")
+	goSrcDir := flag.String("goSrc", os.Getenv("SRC_DIR"), "The directory of the go files to be parsed for the standard library.")
 	flag.Parse()
-
-	if *populate {
-		err := parser.ParseAndExportDirectory(*goSrc)
-		if err != nil {
-			log.Fatalf("error when parsing given directory: %s\n", err.Error())
-		}
-		os.Exit(0)
-	}
 
 	attempts := 1
 	for {
-		log.Println("Attempting to connect to db. Try #" + fmt.Sprint(attempts))
-		_, err := postgres.InitDB(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName, *dataFile)
+		log.Println("Attempting to connect to db. Attempt #" + fmt.Sprint(attempts))
+		err := postgres.Connect(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName)
 		if err == nil {
-			break
+			err = postgres.CheckDBStructure()
+			if err == nil {
+				break
+			}
+			panic(fmt.Sprintf("error when checking the structure of the dataase: %s", err.Error()))
 		}
 		// If the db container is being created at the same time as the application container
 		// it takes longer to start up. If the error is the connection being refused, the app
@@ -65,21 +62,32 @@ func main() {
 	}
 	log.Println("*****Successfully connected to the database*****")
 
-	store, err := store.New()
-	if err != nil {
-		log.Fatalf("unable to create store: %s\n", err.Error())
-	}
-	s := server.New(store)
+	store := store.New()
 
-	if *dev {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), server.AllowCorsMiddleware(s.ServeMux)))
+	count, err := postgres.GetCustomTypeCount()
+	if err != nil {
+		panic(fmt.Sprintf("error when getting count of custom types from the database: %s", err.Error()))
 	}
-	if *ssl {
-		if *port == 80 {
-			*port = 443
+	if count == 0 {
+		log.Println("Database is empty, populating with standard library")
+		p := parser.New()
+		p.ParseDir(*goSrcDir)
+		err := store.InsertParsedProject(p)
+		if err != nil {
+			panic(err)
 		}
-		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certFile, *keyFile, s.ServeMux))
+	}
+
+	templates, err := server.ParseTemplates(templateDir)
+	if err != nil {
+		panic(fmt.Sprintf("unable to parse templates: %s", err.Error()))
+	}
+
+	s := server.New(store, templates, staticDir)
+
+	if *ssl {
+		log.Fatal(http.ListenAndServeTLS(":443", *certFile, *keyFile, s))
 	} else {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), s.ServeMux))
+		log.Fatal(http.ListenAndServe(":8080", s))
 	}
 }

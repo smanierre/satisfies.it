@@ -1,49 +1,17 @@
 stages:
-  - build-front
-  - populate
   - build-back
-
 variables:
   DOCKER_HOST: tcp://docker:2375
-
-build-frontend:
-  image: node:13.4.0
-  stage: build-front
-  script:
-    - cd frontend
-    - npm install
-    - npm run build
-  artifacts:
-    paths:
-      - frontend/build
-
-parse-files:
-  image: golang:latest
-  stage: populate
-  script:
-    - cd backend
-    - go run main.go -populate
-  artifacts:
-    paths:
-      - backend/types.json
-
 build-apptainer:
   image: docker
   services:
     - docker:dind
   stage: build-back
-  dependencies:
-    - parse-files
-    - build-frontend
   script:
-    - mkdir backend/static
-    - cp -r frontend/build/* backend/static/
-    - cd backend
-    - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER" > .env
+    - printf "DB_HOST=$DB_HOST\nDB_NAME=$DB_NAME\nDB_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nDB_USER=$DB_USER\nSRC_DIR=/go" > .env
     - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site:latest
   artifacts:
     paths:
-      - backend/docker-compose.yml
-      - backend/.env
+      - .env

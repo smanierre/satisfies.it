@@ -1,6 +1,8 @@
 package util
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestIsBuiltin(t *testing.T) {
 	tc := []struct {
@@ -127,6 +129,29 @@ func TestIsGoFile(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			if result := IsGoFile(tt.TestName); result != tt.Expected {
 				t.Errorf("Expected %t for name %s but got %t.\n", tt.Expected, tt.TestName, result)
+			}
+		})
+	}
+}
+
+func TestStartsWith(t *testing.T) {
+	tc := []struct {
+		Name          string
+		TestString    string
+		TestSubstring string
+		Expected      bool
+	}{
+		{"Empty strings", "", "", true},
+		{"Does start with", "Hello, world!", "Hello,", true},
+		{"Wrong case", "Hello, world!", "hello,", false},
+		{"Substring longer than string", "", "hello,", false},
+		{"Blank substring", "Hello, World!", "", true},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.Name, func(t *testing.T) {
+			if result := StartsWith(tt.TestString, tt.TestSubstring); result != tt.Expected {
+				t.Errorf("Expected %t for substring %s in string %s but got %t.\n", tt.Expected, tt.TestSubstring, tt.TestString, result)
 			}
 		})
 	}
