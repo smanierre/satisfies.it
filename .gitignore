@@ -1,5 +1,4 @@
 .vscode
 .idea
-backend/.env
-backend/k8s.json
+.env
 
