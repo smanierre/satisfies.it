@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"go/types"
 	"log"
@@ -90,34 +89,6 @@ func GetCustomTypeCount() (int, error) {
 		return -1, fmt.Errorf("error when getting count of custom types from the database: %s", err.Error())
 	}
 	return count, nil
-}
-
-//CheckDBStructure checks to make sure all the expected tables exist in the database before inserting or querying.
-func CheckDBStructure() error {
-	res, err := db.Query(context.Background(), "select table_name from information_schema.tables;")
-	if err != nil {
-		return err
-	}
-	defer res.Close()
-
-	foundTables := 0
-	for res.Next() {
-		if res.Err() != nil {
-			return res.Err()
-		}
-		var a string
-		res.Scan(&a)
-		for _, table := range getExpectedTables() {
-			if a == table {
-				foundTables++
-				break
-			}
-		}
-	}
-	if foundTables != len(getExpectedTables()) {
-		return errors.New("unable to find all expected tables. Verify the database or load a new one")
-	}
-	return nil
 }
 
 //GetConcreteTypes returns all of the concrete types from the database.

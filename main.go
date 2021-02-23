@@ -23,6 +23,9 @@ var templateDir embed.FS
 //go:embed static
 var staticDir embed.FS
 
+//go:embed create_database.psql
+var createDBScript string
+
 func main() {
 	godotenv.Load()
 	certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
@@ -40,12 +43,20 @@ func main() {
 	for {
 		log.Println("Attempting to connect to db. Attempt #" + fmt.Sprint(attempts))
 		err := postgres.Connect(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName)
+		//This is the first time the container is being created, so the structure needs to be created.
+		if err != nil && strings.Contains(err.Error(), "database \"types\" does not exist") {
+			err = postgres.CreateStructure(*dbHost, *dbPort, *dbUser, *dbPassword, createDBScript)
+			if err != nil {
+				panic(err.Error())
+			}
+			err = postgres.Connect(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName)
+		}
 		if err == nil {
 			err = postgres.CheckDBStructure()
 			if err == nil {
 				break
 			}
-			panic(fmt.Sprintf("error when checking the structure of the dataase: %s", err.Error()))
+			panic(fmt.Sprintf("error when checking the structure of the database: %s", err.Error()))
 		}
 		// If the db container is being created at the same time as the application container
 		// it takes longer to start up. If the error is the connection being refused, the app
