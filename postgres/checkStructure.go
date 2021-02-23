@@ -2,15 +2,20 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v4"
 )
 
-func getExpectedTables() []string {
-	return []string{"custom_types", "concrete_types", "methods", "interface_implementers", "type_implementees"}
+func getExpectedTables() map[string]bool {
+	return map[string]bool{
+		"custom_types":           false,
+		"concrete_types":         false,
+		"methods":                false,
+		"interface_implementers": false,
+		"type_implementees":      false,
+	}
 }
 
 //CheckDBStructure checks to make sure all the expected tables exist in the database before inserting or querying.
@@ -20,23 +25,29 @@ func CheckDBStructure() error {
 		return err
 	}
 	defer res.Close()
-
-	foundTables := 0
+	tables := getExpectedTables()
 	for res.Next() {
 		if res.Err() != nil {
 			return res.Err()
 		}
-		var a string
-		res.Scan(&a)
-		for _, table := range getExpectedTables() {
-			if a == table {
-				foundTables++
+		var t string
+		res.Scan(&t)
+		for table := range tables {
+			if t == table {
+				tables[table] = true
 				break
 			}
 		}
 	}
-	if foundTables != len(getExpectedTables()) {
-		return errors.New("unable to find all expected tables. Verify the database or load a new one")
+	missing := false
+	for t, f := range tables {
+		if !f {
+			log.Printf("Missing table: %s\n", t)
+			missing = true
+		}
+	}
+	if missing {
+		return fmt.Errorf("error when checking database structure: missing expected tables")
 	}
 	return nil
 }
