@@ -37,6 +37,7 @@ func main() {
 	dbName := flag.String("dbName", os.Getenv("POSTGRES_DB"), "The name of the database that should be connected to. Defaults to types.")
 	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl. If no specific port is provided, port is automatically set to 443")
 	goSrcDir := flag.String("goSrc", os.Getenv("SRC_DIR"), "The directory of the go files to be parsed for the standard library.")
+	dev := flag.Bool("dev", false, "If the dev flag is passed, the server will listen on port 8080.")
 	flag.Parse()
 
 	attempts := 1
@@ -98,7 +99,9 @@ func main() {
 
 	if *ssl {
 		log.Fatal(http.ListenAndServeTLS(":443", *certFile, *keyFile, s))
-	} else {
+	} else if *dev {
 		log.Fatal(http.ListenAndServe(":8080", s))
+	} else {
+		log.Fatal(http.ListenAndServe(":80", s))
 	}
 }

@@ -78,6 +78,7 @@ func CreateStructure(dbHost, dbPort, dbUser, dbPassword, script string) error {
 	log.Println("Creating types database structure")
 	queries := strings.SplitAfter(script, ";")
 	for _, q := range queries {
+		log.Printf("Executing query: %s\n", q)
 		_, err = tempTypesDB.Exec(context.Background(), strings.TrimSpace(q))
 		if err != nil {
 			return fmt.Errorf("error when creating types database structure: %s", err.Error())
