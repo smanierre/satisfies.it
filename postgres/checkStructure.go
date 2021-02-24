@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/jackc/pgx/v4"
 )
@@ -75,9 +76,12 @@ func CreateStructure(dbHost, dbPort, dbUser, dbPassword, script string) error {
 		return fmt.Errorf("error when connecting to types database to create structure: %s", err.Error())
 	}
 	log.Println("Creating types database structure")
-	_, err = tempTypesDB.Exec(context.Background(), script)
-	if err != nil {
-		return fmt.Errorf("error when creating types database structure: %s", err.Error())
+	queries := strings.SplitAfter(script, ";")
+	for _, q := range queries {
+		_, err = tempTypesDB.Exec(context.Background(), strings.TrimSpace(q))
+		if err != nil {
+			return fmt.Errorf("error when creating types database structure: %s", err.Error())
+		}
 	}
 	return nil
 }
