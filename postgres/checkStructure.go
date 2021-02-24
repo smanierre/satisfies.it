@@ -20,7 +20,7 @@ func getExpectedTables() map[string]bool {
 }
 
 //CheckDBStructure checks to make sure all the expected tables exist in the database before inserting or querying.
-func CheckDBStructure() error {
+func CheckDBStructure(script string) error {
 	res, err := db.Query(context.Background(), "select table_name from information_schema.tables;")
 	if err != nil {
 		return err
@@ -56,20 +56,7 @@ func CheckDBStructure() error {
 //CreateStructure takes in a script as a string along with connection details for the database,
 //and runs the script to create the database structure.
 func CreateStructure(dbHost, dbPort, dbUser, dbPassword, script string) error {
-	log.Println("Database not detected, creating.")
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, "postgres")
-	tempDB, err := pgx.Connect(context.Background(), psqlInfo)
-	if err != nil {
-		return fmt.Errorf("error when connecting to database \"postgres\" when creating types database: %s", err.Error())
-	}
-	log.Println("Creating database types")
-	_, err = tempDB.Exec(context.Background(), "CREATE DATABASE types")
-	if err != nil {
-		return fmt.Errorf("error when creating database types: %s", err.Error())
-	}
-	tempDB.Close(context.Background())
-	psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, "types")
 	tempTypesDB, err := pgx.Connect(context.Background(), psqlInfo)
 	if err != nil {
@@ -83,6 +70,23 @@ func CreateStructure(dbHost, dbPort, dbUser, dbPassword, script string) error {
 		if err != nil {
 			return fmt.Errorf("error when creating types database structure: %s", err.Error())
 		}
+	}
+	return nil
+}
+
+//CreateTypesDB takes in the info for the connection string and creates the types database.
+func CreateTypesDB(dbHost, dbPort, dbUser, dbPassword string) error {
+	log.Println("Creating database \"types\"")
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, "postgres")
+	tempDB, err := pgx.Connect(context.Background(), psqlInfo)
+	if err != nil {
+		return fmt.Errorf("error when attempting to connect to postgres db: %s", err.Error())
+	}
+	defer tempDB.Close(context.Background())
+	_, err = tempDB.Exec(context.Background(), "CREATE DATABASE types;")
+	if err != nil {
+		return fmt.Errorf("error when creating types database: %s", err.Error())
 	}
 	return nil
 }

@@ -46,14 +46,19 @@ func main() {
 		err := postgres.Connect(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName)
 		//This is the first time the container is being created, so the structure needs to be created.
 		if err != nil && strings.Contains(err.Error(), "database \"types\" does not exist") {
-			err = postgres.CreateStructure(*dbHost, *dbPort, *dbUser, *dbPassword, createDBScript)
+			err = postgres.CreateTypesDB(*dbHost, *dbPort, *dbUser, *dbPassword)
 			if err != nil {
 				panic(err.Error())
 			}
 			err = postgres.Connect(*dbHost, *dbPort, *dbUser, *dbPassword, *dbName)
 		}
 		if err == nil {
-			err = postgres.CheckDBStructure()
+			err = postgres.CheckDBStructure(createDBScript)
+			if err == nil {
+				break
+			}
+			log.Println("Missing tables detected, attempting to create.")
+			err = postgres.CreateStructure(*dbHost, *dbPort, *dbUser, *dbPassword, createDBScript)
 			if err == nil {
 				break
 			}
