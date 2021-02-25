@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/store"
 )
@@ -30,10 +31,29 @@ func New(store store.TypeStore, ts *template.Template, static embed.FS) *http.Se
 			if err != nil {
 				panic(err)
 			}
-			http.Handle(k, http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+			http.Handle(k, loggingMiddleware(http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))))
 			continue
 		}
-		http.Handle(k, v)
+		http.Handle(k, loggingMiddleware(v))
 	}
 	return http.DefaultServeMux
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !filterLoggingRequests(r.URL.Path) {
+			log.Printf("Handling request from: %s at path: %s\n", r.RemoteAddr, r.URL.Path)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func filterLoggingRequests(url string) bool {
+	excludedTypes := []string{".js", ".css", ".svg", ".png"}
+	for _, t := range excludedTypes {
+		if strings.Contains(url, t) {
+			return true
+		}
+	}
+	return false
 }
