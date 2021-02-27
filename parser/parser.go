@@ -4,6 +4,7 @@ import (
 	"go/types"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -40,7 +41,11 @@ func (p *Parser) ParseDir(dir string) error {
 	pkgs := make(map[string]*packages.Package)
 	var mut sync.Mutex
 	var dirs []string
-
+	//DELETE FROM HERE
+	cmd := exec.Command("ls", "/go")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+	//TO HERE
 	walk := func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
