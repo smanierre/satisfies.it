@@ -49,6 +49,7 @@ func (p *Parser) ParseDir(dir string) error {
 		}
 		if info.IsDir() {
 			goFiles, err := filepath.Glob("*.go")
+			log.Println("Found go files: ", goFiles)
 			if err != nil {
 				log.Printf("error while getting list of go files: %s\n", err.Error())
 			}
@@ -64,9 +65,6 @@ func (p *Parser) ParseDir(dir string) error {
 	if err != nil {
 		return err
 	}
-	//DELETE FROM HERE
-	log.Println("Parsing following dirs: ", dirs)
-	//TO HERE
 	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo, Tests: false, Dir: dir}
 	ps, err := packages.Load(cfg, dirs...)
 	if err != nil {
