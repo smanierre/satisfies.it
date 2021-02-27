@@ -86,7 +86,7 @@ func main() {
 		panic(fmt.Sprintf("error when getting count of custom types from the database: %s", err.Error()))
 	}
 	if count == 0 {
-		log.Println("Database is empty, populating with standard library")
+		log.Println("Database is empty, populating with standard library from path: ", *goSrcDir)
 		p := parser.New()
 		p.ParseDir(*goSrcDir)
 		err := store.InsertParsedProject(p)
