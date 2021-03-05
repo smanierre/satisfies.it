@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"go/types"
 	"log"
 	"os"
@@ -48,8 +49,7 @@ func (p *Parser) ParseDir(dir string) error {
 			return nil
 		}
 		if info.IsDir() {
-			goFiles, err := filepath.Glob("*.go")
-			log.Println("Found go files: ", goFiles)
+			goFiles, err := filepath.Glob(fmt.Sprintf("%s/*.go", p))
 			if err != nil {
 				log.Printf("error while getting list of go files: %s\n", err.Error())
 			}

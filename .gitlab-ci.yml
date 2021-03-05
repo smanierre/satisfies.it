@@ -8,7 +8,7 @@ build-apptainer:
     - docker:dind
   stage: build-back
   script:
-    - printf "DB_HOST=$DB_HOST\nPOSTGRES_DB=$DB_NAME\nPOSTGRES_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nPOSTGRES_USER=$DB_USER\nSRC_DIR=/go" > .env
+    - printf "DB_HOST=$DB_HOST\nPOSTGRES_DB=$DB_NAME\nPOSTGRES_PASSWORD=$DB_PASSWORD\nDB_PORT=$DB_PORT\nPOSTGRES_USER=$DB_USER" > .env
     - docker build -t smanierre/typer-site:latest .
     - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push smanierre/typer-site:latest

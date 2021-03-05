@@ -37,6 +37,7 @@ func main() {
 	dbName := flag.String("dbName", os.Getenv("POSTGRES_DB"), "The name of the database that should be connected to. Defaults to types.")
 	ssl := flag.Bool("prod", false, "A flag to specify whether or not to use ssl. If no specific port is provided, port is automatically set to 443")
 	goSrcDir := flag.String("goSrc", os.Getenv("SRC_DIR"), "The directory of the go files to be parsed for the standard library.")
+	port := flag.String("port", os.Getenv("PORT"), "Used to override what port the web server listens on")
 	dev := flag.Bool("dev", false, "If the dev flag is passed, the server will listen on port 8080.")
 	flag.Parse()
 
@@ -86,6 +87,10 @@ func main() {
 		panic(fmt.Sprintf("error when getting count of custom types from the database: %s", err.Error()))
 	}
 	if count == 0 {
+		if *goSrcDir == "" {
+			log.Println("goSrcDir is empty, defaulting to /usr/local/go/src")
+			*goSrcDir = "/usr/local/go/src"
+		}
 		log.Println("Database is empty, populating with standard library from path: ", *goSrcDir)
 		p := parser.New()
 		p.ParseDir(*goSrcDir)
@@ -107,6 +112,9 @@ func main() {
 	} else if *dev {
 		log.Fatal(http.ListenAndServe(":8080", s))
 	} else {
+		if *port != "" {
+			log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), s))
+		}
 		log.Fatal(http.ListenAndServe(":80", s))
 	}
 }
