@@ -93,7 +93,6 @@ func GetCustomTypeCount() (int, error) {
 
 //GetConcreteTypes returns all of the concrete types from the database.
 func GetConcreteTypes() ([]ConcreteTypeRecord, error) {
-	log.Println("Getting all ConcreteTypes.")
 	rows, err := db.Query(context.Background(), selectAllConcreteTypesQuery)
 	defer rows.Close()
 	if err != nil {
@@ -110,13 +109,11 @@ func GetConcreteTypes() ([]ConcreteTypeRecord, error) {
 		}
 		types = append(types, ct)
 	}
-	log.Println(resultCount, " Results")
 	return types, nil
 }
 
 //GetConcreteTypeByID returns a concrete type from the database that matches the provided ID.
 func GetConcreteTypeByID(id int64) (ConcreteTypeRecord, error) {
-	log.Println("Getting ConcreteType with id: ", id)
 	row := db.QueryRow(context.Background(), selectConcreteTypeByIDQuery, id)
 	var ct ConcreteTypeRecord
 	err := row.Scan(&ct.ID, &ct.Package, &ct.Name, &ct.Pointer, &ct.BaseType)
@@ -129,7 +126,6 @@ func GetConcreteTypeByID(id int64) (ConcreteTypeRecord, error) {
 //GetConcreteTypesByName returns all the types whose name matches or partially matches the given name query.
 //If a package is specified in the name e.g. `io.Writer`, the results will be limited to that package.
 func GetConcreteTypesByName(name string) ([]ConcreteTypeRecord, error) {
-	log.Println("Getting ConcreteType with name: ", name)
 	pkg := false
 	parts := strings.Split(name, ".")
 	var pack, n string
@@ -173,7 +169,6 @@ func GetConcreteTypesByName(name string) ([]ConcreteTypeRecord, error) {
 
 //GetInterfaces returns all of the interfaces from the database.
 func GetInterfaces() ([]InterfaceRecord, error) {
-	log.Println("Getting all Interfaces")
 	rows, err := db.Query(context.Background(), selectAllInterfacesQuery)
 	defer rows.Close()
 	if err != nil {
@@ -190,13 +185,11 @@ func GetInterfaces() ([]InterfaceRecord, error) {
 		}
 		interfaces = append(interfaces, ir)
 	}
-	log.Println(resultCount, " results")
 	return interfaces, nil
 }
 
 //GetInterfaceByID returns an interface from the database that matches the provided ID.
 func GetInterfaceByID(id int64) (InterfaceRecord, error) {
-	log.Println("Getting Interface with id: ", id)
 	row := db.QueryRow(context.Background(), selectInterfaceByIDQuery, id)
 	var ir InterfaceRecord
 	err := row.Scan(&ir.ID, &ir.Package, &ir.Name)
@@ -209,7 +202,6 @@ func GetInterfaceByID(id int64) (InterfaceRecord, error) {
 //GetInterfacesByName returns all interfaces that have a name that fully or partially matches the query. If a package
 //name is provied in the query e.g. `io.Writer`, the results will be limited to interfaces from the specified package.
 func GetInterfacesByName(name string) ([]InterfaceRecord, error) {
-	log.Println("Getting Interface with name: ", name)
 	pkg := false
 	parts := strings.Split(name, ".")
 	var pack, n string
@@ -253,7 +245,6 @@ func GetInterfacesByName(name string) ([]InterfaceRecord, error) {
 
 //GetMethodsByParentID retrieves all the methods that belong to a concrete type or interface.
 func GetMethodsByParentID(id int64) ([]MethodRecord, error) {
-	log.Println("Getting Methods by parent id: ", id)
 	rows, err := db.Query(context.Background(), selectMethodByReceiverQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("error when querying database for method by parent id: %s", err.Error())
@@ -272,7 +263,6 @@ func GetMethodsByParentID(id int64) ([]MethodRecord, error) {
 
 //GetMethods returns all the methods from the database.
 func GetMethods() ([]MethodRecord, error) {
-	log.Println("Getting all methods")
 	rows, err := db.Query(context.Background(), selectAllMethodQuery)
 	if err != nil {
 		return nil, err
@@ -280,8 +270,9 @@ func GetMethods() ([]MethodRecord, error) {
 	methods := []MethodRecord{}
 	for rows.Next() {
 		var m MethodRecord
-		err = rows.Scan(&m)
+		err = rows.Scan(&m.ID, &m.Name, &m.Parameters, &m.ReturnValues, &m.ReceiverID)
 		if err != nil {
+			fmt.Println(rows.Values())
 			return nil, fmt.Errorf("error when scanning method into struct: %s", err.Error())
 		}
 		methods = append(methods, m)
@@ -291,7 +282,6 @@ func GetMethods() ([]MethodRecord, error) {
 
 //GetInterfaceImplementers returns a map with the key being the ID of the interface, and the value being the IDs of the types that implement it.
 func GetInterfaceImplementers() (map[int64][]int64, error) {
-	log.Println("Getting all interface implementers.")
 	rows, err := db.Query(context.Background(), selectAllInterfaceImplementersQuery)
 	if err != nil {
 		return nil, err
@@ -315,7 +305,6 @@ func GetInterfaceImplementers() (map[int64][]int64, error) {
 
 //GetInterfaceImplementersByInterfaceID returns the IDs of all the types that implement the interface of the given ID.
 func GetInterfaceImplementersByInterfaceID(id int64) ([]int64, error) {
-	log.Println("Getting all interface implementers for id: ", id)
 	rows, err := db.Query(context.Background(), selectInterfaceImplementersByInterfaceIDQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("error when selecting interface implementers by interface id from database: %s", err.Error())
@@ -334,7 +323,6 @@ func GetInterfaceImplementersByInterfaceID(id int64) ([]int64, error) {
 
 //GetTypeImplementees returns a list of the IDs of all the types along with the IDs of all the interfaces that they implement.
 func GetTypeImplementees() (map[int64][]int64, error) {
-	log.Println("Getting all type implementees")
 	rows, err := db.Query(context.Background(), selectAllTypeImplementeesQuery)
 	if err != nil {
 		return nil, err
@@ -357,7 +345,6 @@ func GetTypeImplementees() (map[int64][]int64, error) {
 
 //GetTypeImplementeesByTypeID returns the IDs of all the interfaces that are implemented by the type of the given ID.
 func GetTypeImplementeesByTypeID(id int64) ([]int64, error) {
-	log.Println("Getting all Type Implementees with id: ", id)
 	rows, err := db.Query(context.Background(), selectTypeImplementeesByTypeIDQuery, id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving type implementees by type id from database: %s", err.Error())
@@ -374,6 +361,7 @@ func GetTypeImplementeesByTypeID(id int64) ([]int64, error) {
 	return ids, nil
 }
 
+//TODO: Get this working.
 //InsertConcreteType inserts a concrete type into the database and returns the ID of the inserted type. If the underlying type of the
 //provided types.Type is an interface, an error will be returned.
 func InsertConcreteType(ct types.Type) (int64, error) {

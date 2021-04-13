@@ -67,12 +67,6 @@ func getTypesFromQuery(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	query := r.Form.Get("typeQuery")
 	data.ResultQuery = query
-	if query == "test" {
-		w.WriteHeader(http.StatusInternalServerError)
-		templates.ExecuteTemplate(w, "ise.gohtml", data.headerTemplateData)
-		log.Printf("error when getting all concrete types from store: %s", "err.Error()")
-		return
-	}
 	if query == "" {
 		concreteTypes, err := typeStore.GetConcreteTypes()
 		if err != nil {

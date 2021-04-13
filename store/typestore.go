@@ -3,13 +3,13 @@ package store
 import (
 	"fmt"
 	"go/types"
+	"log"
+	"strings"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
 	db "gitlab.com/sean.manierre/typer-site/postgres"
 	"gitlab.com/sean.manierre/typer-site/util"
 )
-
-//TODO: REDO ALL COMMENTS ON EXPORTED TYPES AND METHODS
 
 // TypeStore is an interface that describes all the methods needed by the application
 type TypeStore interface {
@@ -26,174 +26,149 @@ type TypeStore interface {
 
 //Interface represents an interface and all of its methods.
 type Interface struct {
-	ID      int64    `json:"id"`
-	Package string   `json:"package"`
-	Name    string   `json:"name"`
-	Methods []Method `json:"methods"`
+	ID      int64
+	Package string
+	Name    string
+	Methods []Method
 }
 
 //ConcreteType represents a concrete type and all of its methods.
 type ConcreteType struct {
-	ID       int64    `json:"id"`
-	Package  string   `json:"package"`
-	Name     string   `json:"name"`
-	Pointer  bool     `json:"pointer"`
-	BaseType string   `json:"base_type"`
-	Methods  []Method `json:"methods"`
+	ID       int64
+	Package  string
+	Name     string
+	Pointer  bool
+	BaseType string
+	Methods  []Method
 }
 
 //Method represents a method belonging to either an interface or a concrete type
 type Method struct {
-	ID           int64    `json:"id"`
-	Name         string   `json:"name"`
-	Parameters   []string `json:"parameters"`
-	ReturnValues []string `json:"return_values"`
+	ID           int64
+	Name         string
+	Parameters   []string
+	ReturnValues []string
 }
 
 // TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
-type TypeStorePGImpl struct{}
+type TypeStorePGImpl struct {
+	interfaces    []Interface
+	concreteTypes []ConcreteType
+	methods       []Method
+	validCache    bool
+}
 
 // New returns a new TypeStore that can query the database.
 func New() TypeStore {
-	return &TypeStorePGImpl{}
+	return &TypeStorePGImpl{
+		interfaces:    []Interface{},
+		concreteTypes: []ConcreteType{},
+		methods:       []Method{},
+		validCache:    false,
+	}
 }
 
 // GetInterfaces returns a slice of Interfaces containing all the interfaces in the database.
 func (t *TypeStorePGImpl) GetInterfaces() ([]Interface, error) {
-	interfaces, err := db.GetInterfaces()
-	ifaces := []Interface{}
-	if err != nil {
-		return nil, fmt.Errorf("error when retreiving interfaces from the database: %s", err.Error())
+	t.refreshCache()
+	if len(t.interfaces) == 0 {
+		return nil, fmt.Errorf("error: no interfaces in the typestore cache")
 	}
-	for _, i := range interfaces {
-		methods, err := getMethodsofParent(i.ID, db.Interface)
-		if err != nil {
-			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
-		}
-		ifaces = append(ifaces, Interface{
-			ID:      i.ID,
-			Package: i.Package,
-			Name:    i.Name,
-			Methods: methods,
-		})
-	}
-	return ifaces, nil
+	return t.interfaces, nil
 }
 
 // GetInterfaceByID returns an Interface whose ID matches supplied ID.
 func (t *TypeStorePGImpl) GetInterfaceByID(id int64) (Interface, error) {
-	ir, err := db.GetInterfaceByID(id)
-	if err != nil {
-		return Interface{}, fmt.Errorf("error when retreiving interface by ID from the database: %s", err.Error())
+	t.refreshCache()
+	for _, i := range t.interfaces {
+		if i.ID == id {
+			return i, nil
+		}
 	}
-	iface := Interface{
-		ID:      ir.ID,
-		Package: ir.Package,
-		Name:    ir.Name,
-		Methods: []Method{},
-	}
-	methods, err := getMethodsofParent(ir.ID, db.Interface)
-	if err != nil {
-		return Interface{}, fmt.Errorf("error when getting methods of parent: %s", err.Error())
-	}
-	iface.Methods = methods
-	return iface, nil
+	return Interface{}, fmt.Errorf("interface not found")
 }
 
 //GetInterfacesByName returns a list of interfaces with the given name. If the package is included
 //e.g. `io.Writer`, the results are limited to the specified package.
 func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) {
-	interfaceRecords, err := db.GetInterfacesByName(name)
+	t.refreshCache()
+	matches := []Interface{}
+	nameParts, err := splitPackageName(name)
 	if err != nil {
-		return nil, fmt.Errorf("error when retreiving interfaces by name from the database: %s", err.Error())
+		return nil, fmt.Errorf("error when splitting type name: %s", err.Error())
 	}
-	interfaces := []Interface{}
-	for _, i := range interfaceRecords {
-		methods, err := getMethodsofParent(i.ID, db.Interface)
-		if err != nil {
-			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+	//No package specified, only match on interface name
+	if len(nameParts) == 1 {
+		for _, i := range t.interfaces {
+			if strings.Contains(i.Name, nameParts[0]) {
+				matches = append(matches, i)
+			}
 		}
-		interfaces = append(interfaces, Interface{
-			ID:      i.ID,
-			Package: i.Package,
-			Name:    i.Name,
-			Methods: methods,
-		})
+		//Package was specified, limit results to just the package
+	} else if len(nameParts) == 2 {
+		for _, i := range t.interfaces {
+			if i.Package == nameParts[0] {
+				if strings.Contains(i.Name, nameParts[1]) {
+					matches = append(matches, i)
+				}
+			}
+		}
 	}
-	return interfaces, nil
+	return matches, nil
 }
 
 // GetConcreteTypes returns a slice of ConcreteTypes containing all the concrete types in the database.
 func (t *TypeStorePGImpl) GetConcreteTypes() ([]ConcreteType, error) {
-	types, err := db.GetConcreteTypes()
-	if err != nil {
-		return nil, fmt.Errorf("error when retreiving concrete types from the database: %s", err.Error())
+	t.refreshCache()
+	if len(t.concreteTypes) == 0 {
+		return nil, fmt.Errorf("error: no interfaces in the typestore cache")
 	}
-	concreteTypes := []ConcreteType{}
-	for _, ct := range types {
-		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
-		if err != nil {
-			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
-		}
-		concreteTypes = append(concreteTypes, ConcreteType{
-			ID:       ct.ID,
-			Package:  ct.Package,
-			Name:     ct.Name,
-			Pointer:  ct.Pointer,
-			BaseType: ct.BaseType,
-			Methods:  methods,
-		})
-	}
-	return concreteTypes, nil
+	return t.concreteTypes, nil
 }
 
 // GetConcreteTypeByID returns a ConcreteType matching the id if it exists.
 func (t *TypeStorePGImpl) GetConcreteTypeByID(id int64) (ConcreteType, error) {
-	ct, err := db.GetConcreteTypeByID(id)
-	if err != nil {
-		return ConcreteType{}, fmt.Errorf("error when retreiving concrete type from database: %s", err.Error())
+	t.refreshCache()
+	for _, ct := range t.concreteTypes {
+		if ct.ID == id {
+			return ct, nil
+		}
 	}
-	methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
-	if err != nil {
-		return ConcreteType{}, fmt.Errorf("error when getting methods of parent: %s", err.Error())
-	}
-	return ConcreteType{
-		ID:       ct.ID,
-		Package:  ct.Package,
-		Name:     ct.Name,
-		Pointer:  ct.Pointer,
-		BaseType: ct.BaseType,
-		Methods:  methods,
-	}, nil
+	return ConcreteType{}, fmt.Errorf("interface not found")
 }
 
 //GetConcreteTypesByName returns a type with the given name. If the package is specified e.g. `io.Writer`, the results
 //are limited to the specified package.
 func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, error) {
-	typeRecords, err := db.GetConcreteTypesByName(name)
+	t.refreshCache()
+	matches := []ConcreteType{}
+	nameParts, err := splitPackageName(name)
 	if err != nil {
-		return nil, fmt.Errorf("error when retreiving concrete types by name from the database: %s", err.Error())
+		return nil, fmt.Errorf("error when splitting type name: %s", err.Error())
 	}
-	concreteTypes := []ConcreteType{}
-	for _, ct := range typeRecords {
-		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
-		if err != nil {
-			return nil, fmt.Errorf("error when getting methods of parent: %s", err.Error())
+	//No package specified, only match on type name
+	if len(nameParts) == 1 {
+		for _, ct := range t.concreteTypes {
+			if strings.Contains(ct.Name, nameParts[0]) {
+				matches = append(matches, ct)
+			}
 		}
-		concreteTypes = append(concreteTypes, ConcreteType{
-			ID:       ct.ID,
-			Package:  ct.Package,
-			Name:     ct.Name,
-			Pointer:  ct.Pointer,
-			BaseType: ct.BaseType,
-			Methods:  methods,
-		})
+		//Package was specified, limit results to just the package
+	} else if len(nameParts) == 2 {
+		for _, ct := range t.concreteTypes {
+			if ct.Package == nameParts[0] {
+				if strings.Contains(ct.Name, nameParts[1]) {
+					matches = append(matches, ct)
+				}
+			}
+		}
 	}
-	return concreteTypes, nil
+	return matches, nil
 }
 
 //GetImplementingIDs returns the id of each type that implements the given interface.
 func (t *TypeStorePGImpl) GetImplementingIDs(id int64) ([]int64, error) {
+	t.refreshCache()
 	ids, err := db.GetInterfaceImplementersByInterfaceID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implementer IDs from database: %s", err.Error())
@@ -203,6 +178,7 @@ func (t *TypeStorePGImpl) GetImplementingIDs(id int64) ([]int64, error) {
 
 //GetImplementeeIDs returns the id of each interface that is implemented by the given type.
 func (t *TypeStorePGImpl) GetImplementeeIDs(id int64) ([]int64, error) {
+	t.refreshCache()
 	ids, err := db.GetTypeImplementeesByTypeID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implentee IDs from database: %s", err.Error())
@@ -348,6 +324,7 @@ func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
 			}
 		}
 	}
+	t.validCache = false
 	return nil
 }
 
@@ -366,4 +343,76 @@ func getMethodsofParent(parentID int64, parentType db.ReceiverType) ([]Method, e
 		})
 	}
 	return ms, nil
+}
+
+func (t *TypeStorePGImpl) refreshCache() {
+	if t.validCache {
+		return
+	}
+	log.Println("Cache is invalid, refreshing.")
+	interfaces, err := db.GetInterfaces()
+	if err != nil {
+		log.Println("Error refreshing cache:", err.Error())
+	}
+	for _, i := range interfaces {
+		methods, err := getMethodsofParent(i.ID, db.Interface)
+		if err != nil {
+			log.Println("Error refreshing cache:", err.Error())
+		}
+		t.interfaces = append(t.interfaces, Interface{
+			ID:      i.ID,
+			Package: i.Package,
+			Name:    i.Name,
+			Methods: methods,
+		})
+	}
+
+	types, err := db.GetConcreteTypes()
+	if err != nil {
+		log.Println("Error refreshing cache:", err.Error())
+	}
+	for _, ct := range types {
+		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
+		if err != nil {
+			log.Println("Error refreshing cache:", err.Error())
+		}
+		t.concreteTypes = append(t.concreteTypes, ConcreteType{
+			ID:       ct.ID,
+			Package:  ct.Package,
+			Name:     ct.Name,
+			Pointer:  ct.Pointer,
+			BaseType: ct.BaseType,
+			Methods:  methods,
+		})
+	}
+
+	methods, err := db.GetMethods()
+	if err != nil {
+		log.Println("Error refreshing cache:", err.Error())
+	}
+	for _, m := range methods {
+		t.methods = append(t.methods, Method{
+			ID:           m.ID,
+			Name:         m.Name,
+			Parameters:   m.Parameters,
+			ReturnValues: m.ReturnValues,
+		})
+	}
+	t.validCache = true
+}
+
+func splitPackageName(name string) ([]string, error) {
+	if strings.Contains(name, ".") {
+		parts := strings.Split(name, ".")
+		//If it's more than 2, there are more than 2 "."'s, which is invalid for a name.
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("error: %s is not a valid type name. Cannot have more than one \".\"", name)
+		}
+		//Make sure neither of the items are empty, if so it means the name starts or stops with a ".", which is invalid.
+		if len(parts[0]) == 0 || len(parts[1]) == 0 {
+			return nil, fmt.Errorf("error: %s is not a valid name. Cannot start or end with a \".\"", name)
+		}
+		return parts, nil
+	}
+	return []string{name}, nil
 }
