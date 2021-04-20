@@ -100,7 +100,7 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) 
 	//No package specified, only match on interface name
 	if len(nameParts) == 1 {
 		for _, i := range t.interfaces {
-			if strings.Contains(i.Name, nameParts[0]) {
+			if util.ContainsIgnoreCase(i.Name, nameParts[0]) {
 				matches = append(matches, i)
 			}
 		}
@@ -108,7 +108,7 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) 
 	} else if len(nameParts) == 2 {
 		for _, i := range t.interfaces {
 			if i.Package == nameParts[0] {
-				if strings.Contains(i.Name, nameParts[1]) {
+				if util.ContainsIgnoreCase(i.Name, nameParts[1]) {
 					matches = append(matches, i)
 				}
 			}
@@ -149,7 +149,7 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, e
 	//No package specified, only match on type name
 	if len(nameParts) == 1 {
 		for _, ct := range t.concreteTypes {
-			if strings.Contains(ct.Name, nameParts[0]) {
+			if util.ContainsIgnoreCase(ct.Name, nameParts[0]) {
 				matches = append(matches, ct)
 			}
 		}
@@ -157,7 +157,7 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, e
 	} else if len(nameParts) == 2 {
 		for _, ct := range t.concreteTypes {
 			if ct.Package == nameParts[0] {
-				if strings.Contains(ct.Name, nameParts[1]) {
+				if util.ContainsIgnoreCase(ct.Name, nameParts[1]) {
 					matches = append(matches, ct)
 				}
 			}
