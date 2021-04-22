@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"log"
 	"strings"
+	"sync"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
 	db "gitlab.com/sean.manierre/typer-site/postgres"
@@ -190,53 +191,30 @@ func (t *TypeStorePGImpl) GetImplementeeIDs(id int64) ([]int64, error) {
 //This method will take care of inserting all the methods first and resolving any types that
 //implement it or interfaces it implements.
 func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
+	wg := &sync.WaitGroup{}
 	//Insert concrete types and methods
 	for _, ct := range p.ConcreteTypes {
-		id, err := db.InsertConcreteType(ct)
-		if err != nil {
-			return fmt.Errorf("error when inserting custom type into the database: %s", err.Error())
-		}
-		var tn *types.Named
-		switch ct.(type) {
-		case *types.Named:
-			tn = ct.(*types.Named)
-		case *types.Pointer:
-			tn = ct.(*types.Pointer).Elem().(*types.Named)
-		}
-		for i := 0; i < tn.NumMethods(); i++ {
-			method := tn.Method(i)
-			//Skip any unexported methods as they aren't relevant to what is being done with this project.
-			if !util.StartsWithUppercase(method.Name()) {
-				continue
-			}
-			_, err := db.InsertMethod(method, id)
+		wg.Add(1)
+		go func(t types.Type) {
+			err := insertConcreteType(t)
 			if err != nil {
-				return fmt.Errorf("error when inserting concrete type method into database: %s", err.Error())
+				panic(err)
 			}
-		}
+			wg.Done()
+		}(ct)
 	}
 	//Insert interfaces and methods
 	for _, i := range p.Interfaces {
-		id, err := db.InsertInterface(i)
-		if err != nil {
-			return fmt.Errorf("error when inserting interface into the database: %s", err.Error())
-		}
-		ti, ok := i.Underlying().(*types.Interface)
-		if !ok {
-			return fmt.Errorf("error when casting underlying type of %v to *types.Interface", i)
-		}
-		for j := 0; j < ti.NumMethods(); j++ {
-			method := ti.Method(j)
-			//Skip any unexported methods as they aren't relevant to what is being done with this project.
-			if !util.StartsWithUppercase(method.Name()) {
-				continue
-			}
-			_, err := db.InsertMethod(ti.Method(j), id)
+		wg.Add(1)
+		go func(t types.Type) {
+			err := insertInterface(t)
 			if err != nil {
-				return fmt.Errorf("error when inserting interface method into database: %s", err.Error())
+				panic(err)
 			}
-		}
+			wg.Done()
+		}(i)
 	}
+	wg.Wait()
 	//Get all concrete types and interfaces so we have the IDs on hand without hitting the database
 	//a lot for inserting the implementer implementee mappings.
 	concreteTypes, err := db.GetConcreteTypes()
@@ -249,81 +227,28 @@ func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
 	}
 	//Insert interface implementers
 	for iface, implementers := range p.Implementers {
-		tn, ok := iface.(*types.Named)
-		if !ok {
-			return fmt.Errorf("error when casting %v to *types.Named for interface being implemented", iface)
-		}
-		var ifaceID int64
-		//Get the ID for the interface
-		for _, i := range interfaces {
-			if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
-				ifaceID = i.ID
-				break
-			}
-		}
-		//Get the ID for each implementing type
-		var typeID int64
-		for _, implementer := range implementers {
-			var tn *types.Named
-			switch implementer.(type) {
-			case *types.Named:
-				tn = implementer.(*types.Named)
-			case *types.Pointer:
-				tn = implementer.(*types.Pointer).Elem().(*types.Named)
-			default:
-				return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", implementer)
-			}
-			for _, typ := range concreteTypes {
-				if tn.Obj().Pkg().Name() == typ.Package && tn.Obj().Name() == typ.Name {
-					typeID = typ.ID
-					break
-				}
-			}
-			err := db.InsertInterfaceImplementers(ifaceID, typeID)
+		wg.Add(1)
+		go func(iface types.Type, implementers []types.Type) {
+			err := insertInterfaceImplementers(iface, implementers, interfaces, concreteTypes)
 			if err != nil {
-				return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+				panic(err)
 			}
-		}
+			wg.Done()
+		}(iface, implementers)
 	}
 
 	//Insert interface implementees
 	for typ, implementees := range p.Implementees {
-		var tn *types.Named
-		switch typ.(type) {
-		case *types.Named:
-			tn = typ.(*types.Named)
-		case *types.Pointer:
-			tn = typ.(*types.Pointer).Elem().(*types.Named)
-		default:
-			return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", typ)
-		}
-		var typeID int64
-		//Get the ID for the type
-		for _, ct := range concreteTypes {
-			if tn.Obj().Pkg().Name() == ct.Package && tn.Obj().Name() == ct.Name {
-				typeID = ct.ID
-				break
-			}
-		}
-		//Get the ID for each implemented interface
-		var ifaceID int64
-		for _, implementee := range implementees {
-			tn, ok := implementee.(*types.Named)
-			if !ok {
-				return fmt.Errorf("error when casting %v to *types.Named", implementee)
-			}
-			for _, i := range interfaces {
-				if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
-					ifaceID = i.ID
-					break
-				}
-			}
-			err := db.InsertTypeImplementee(typeID, ifaceID)
+		wg.Add(1)
+		go func(typ types.Type, implementees []types.Type) {
+			err := insertTypeImplementees(typ, implementees, concreteTypes, interfaces)
 			if err != nil {
-				return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+				panic(err)
 			}
-		}
+			wg.Done()
+		}(typ, implementees)
 	}
+	wg.Wait()
 	t.validCache = false
 	return nil
 }
@@ -415,4 +340,131 @@ func splitPackageName(name string) ([]string, error) {
 		return parts, nil
 	}
 	return []string{name}, nil
+}
+
+func insertConcreteType(ct types.Type) error {
+	id, err := db.InsertConcreteType(ct)
+	if err != nil {
+		return fmt.Errorf("error when inserting custom type into the database: %s", err.Error())
+	}
+	var tn *types.Named
+	switch ct.(type) {
+	case *types.Named:
+		tn = ct.(*types.Named)
+	case *types.Pointer:
+		tn = ct.(*types.Pointer).Elem().(*types.Named)
+	}
+	for i := 0; i < tn.NumMethods(); i++ {
+		method := tn.Method(i)
+		//Skip any unexported methods as they aren't relevant to what is being done with this project.
+		if !util.StartsWithUppercase(method.Name()) {
+			continue
+		}
+		_, err := db.InsertMethod(method, id)
+		if err != nil {
+			return fmt.Errorf("error when inserting concrete type method into database: %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func insertInterface(i types.Type) error {
+	id, err := db.InsertInterface(i)
+	if err != nil {
+		return fmt.Errorf("error when inserting interface into the database: %s", err.Error())
+	}
+	ti, ok := i.Underlying().(*types.Interface)
+	if !ok {
+		return fmt.Errorf("error when casting underlying type of %v to *types.Interface", i)
+	}
+	for j := 0; j < ti.NumMethods(); j++ {
+		method := ti.Method(j)
+		//Skip any unexported methods as they aren't relevant to what is being done with this project.
+		if !util.StartsWithUppercase(method.Name()) {
+			continue
+		}
+		_, err := db.InsertMethod(ti.Method(j), id)
+		if err != nil {
+			return fmt.Errorf("error when inserting interface method into database: %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func insertInterfaceImplementers(iface types.Type, implementers []types.Type, interfaces []db.InterfaceRecord, concreteTypes []db.ConcreteTypeRecord) error {
+	tn, ok := iface.(*types.Named)
+	if !ok {
+		return fmt.Errorf("error when casting %v to *types.Named for interface being implemented", iface)
+	}
+	var ifaceID int64
+	//Get the ID for the interface
+	for _, i := range interfaces {
+		if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
+			ifaceID = i.ID
+			break
+		}
+	}
+	//Get the ID for each implementing type
+	var typeID int64
+	for _, implementer := range implementers {
+		var tn *types.Named
+		switch implementer.(type) {
+		case *types.Named:
+			tn = implementer.(*types.Named)
+		case *types.Pointer:
+			tn = implementer.(*types.Pointer).Elem().(*types.Named)
+		default:
+			return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", implementer)
+		}
+		for _, typ := range concreteTypes {
+			if tn.Obj().Pkg().Name() == typ.Package && tn.Obj().Name() == typ.Name {
+				typeID = typ.ID
+				break
+			}
+		}
+		err := db.InsertInterfaceImplementers(ifaceID, typeID)
+		if err != nil {
+			return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func insertTypeImplementees(typ types.Type, implementees []types.Type, concreteTypes []db.ConcreteTypeRecord, interfaces []db.InterfaceRecord) error {
+	var tn *types.Named
+	switch typ.(type) {
+	case *types.Named:
+		tn = typ.(*types.Named)
+	case *types.Pointer:
+		tn = typ.(*types.Pointer).Elem().(*types.Named)
+	default:
+		return fmt.Errorf("error: %v does not have an underlying type of *types.Named or *types.Pointer", typ)
+	}
+	var typeID int64
+	//Get the ID for the type
+	for _, ct := range concreteTypes {
+		if tn.Obj().Pkg().Name() == ct.Package && tn.Obj().Name() == ct.Name {
+			typeID = ct.ID
+			break
+		}
+	}
+	//Get the ID for each implemented interface
+	var ifaceID int64
+	for _, implementee := range implementees {
+		tn, ok := implementee.(*types.Named)
+		if !ok {
+			return fmt.Errorf("error when casting %v to *types.Named", implementee)
+		}
+		for _, i := range interfaces {
+			if tn.Obj().Pkg().Name() == i.Package && tn.Obj().Name() == i.Name {
+				ifaceID = i.ID
+				break
+			}
+		}
+		err := db.InsertTypeImplementee(typeID, ifaceID)
+		if err != nil {
+			return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
+		}
+	}
+	return nil
 }

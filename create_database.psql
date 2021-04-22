@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS concrete_types(
 CREATE TABLE IF NOT EXISTS methods(
      id serial PRIMARY KEY,
      name VARCHAR(255), 
-     parameters VARCHAR(255)[], 
-     return_values VARCHAR(255)[],
+     parameters VARCHAR(2000)[], 
+     return_values VARCHAR(2000)[],
      receiver_id INTEGER, 
      CONSTRAINT fk_type FOREIGN KEY(receiver_id) REFERENCES custom_types(id) ON DELETE CASCADE
 );
