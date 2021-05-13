@@ -361,7 +361,6 @@ func GetTypeImplementeesByTypeID(id int64) ([]int64, error) {
 	return ids, nil
 }
 
-//TODO: Get this working.
 //InsertConcreteType inserts a concrete type into the database and returns the ID of the inserted type. If the underlying type of the
 //provided types.Type is an interface, an error will be returned.
 func InsertConcreteType(ct types.Type) (int64, error) {

@@ -28,8 +28,8 @@ var createDBScript string
 
 func main() {
 	godotenv.Load()
-	certFile := flag.String("certFile", ".", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
-	keyFile := flag.String("keyFile", ".", "The location of the private key file to be used for the web server. Defaults to the current directory.")
+	certFile := flag.String("certFile", "cert.pem", "The location of the certificate file to be used for the web server. Defaults to the current directory.")
+	keyFile := flag.String("keyFile", "key.pem", "The location of the private key file to be used for the web server. Defaults to the current directory.")
 	dbHost := flag.String("dbHost", os.Getenv("DB_HOST"), "The hostname or IP of the database host. Defaults to localhost.")
 	dbPort := flag.String("dbPort", os.Getenv("DB_PORT"), "The port the database is listening on. Defaults to 5432.")
 	dbUser := flag.String("dbUser", os.Getenv("POSTGRES_USER"), "The user the database should connect as. Defaults to postgres")
