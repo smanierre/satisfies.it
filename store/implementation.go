@@ -8,60 +8,20 @@ import (
 	"sync"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
-	db "gitlab.com/sean.manierre/typer-site/postgres"
 	"gitlab.com/sean.manierre/typer-site/util"
 )
 
-// TypeStore is an interface that describes all the methods needed by the application
-type TypeStore interface {
-	GetInterfaces() ([]Interface, error)
-	GetInterfaceByID(int64) (Interface, error)
-	GetInterfacesByName(string) ([]Interface, error)
-	GetConcreteTypes() ([]ConcreteType, error)
-	GetConcreteTypeByID(int64) (ConcreteType, error)
-	GetConcreteTypesByName(string) ([]ConcreteType, error)
-	GetImplementingIDs(int64) ([]int64, error)
-	GetImplementeeIDs(int64) ([]int64, error)
-	InsertParsedProject(*parser.Parser) error
-}
-
-//Interface represents an interface and all of its methods.
-type Interface struct {
-	ID      int64
-	Package string
-	Name    string
-	Methods []Method
-}
-
-//ConcreteType represents a concrete type and all of its methods.
-type ConcreteType struct {
-	ID       int64
-	Package  string
-	Name     string
-	Pointer  bool
-	BaseType string
-	Methods  []Method
-}
-
-//Method represents a method belonging to either an interface or a concrete type
-type Method struct {
-	ID           int64
-	Name         string
-	Parameters   []string
-	ReturnValues []string
-}
-
-// TypeStorePGImpl is a TypeStore implementation that uses a Postgres database
-type TypeStorePGImpl struct {
+//SqliteStore is an implementation of the TypeStore interface for the sqlite3 database
+type SqliteStore struct {
 	interfaces    []Interface
 	concreteTypes []ConcreteType
 	methods       []Method
-	validCache    bool
+	validCache    boolinterfaces
 }
 
 // New returns a new TypeStore that can query the database.
 func New() TypeStore {
-	return &TypeStorePGImpl{
+	return &SqliteStore{
 		interfaces:    []Interface{},
 		concreteTypes: []ConcreteType{},
 		methods:       []Method{},
@@ -70,18 +30,18 @@ func New() TypeStore {
 }
 
 // GetInterfaces returns a slice of Interfaces containing all the interfaces in the database.
-func (t *TypeStorePGImpl) GetInterfaces() ([]Interface, error) {
-	t.refreshCache()
-	if len(t.interfaces) == 0 {
+func (s *SqliteStore) GetInterfaces() ([]Interface, error) {
+	s.refreshCache()
+	if len(s.interfaces) == 0 {
 		return nil, fmt.Errorf("error: no interfaces in the typestore cache")
 	}
-	return t.interfaces, nil
+	return s.interfaces, nil
 }
 
 // GetInterfaceByID returns an Interface whose ID matches supplied ID.
-func (t *TypeStorePGImpl) GetInterfaceByID(id int64) (Interface, error) {
-	t.refreshCache()
-	for _, i := range t.interfaces {
+func (s *SqliteStore) GetInterfaceByID(id int64) (Interface, error) {
+	s.refreshCache()
+	for _, i := range s.interfaces {
 		if i.ID == id {
 			return i, nil
 		}
@@ -91,8 +51,8 @@ func (t *TypeStorePGImpl) GetInterfaceByID(id int64) (Interface, error) {
 
 //GetInterfacesByName returns a list of interfaces with the given name. If the package is included
 //e.g. `io.Writer`, the results are limited to the specified package.
-func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) {
-	t.refreshCache()
+func (s *SqliteStore) GetInterfacesByName(name string) ([]Interface, error) {
+	s.refreshCache()
 	matches := []Interface{}
 	nameParts, err := splitPackageName(name)
 	if err != nil {
@@ -100,14 +60,14 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) 
 	}
 	//No package specified, only match on interface name
 	if len(nameParts) == 1 {
-		for _, i := range t.interfaces {
+		for _, i := range s.interfaces {
 			if util.ContainsIgnoreCase(i.Name, nameParts[0]) {
 				matches = append(matches, i)
 			}
 		}
 		//Package was specified, limit results to just the package
 	} else if len(nameParts) == 2 {
-		for _, i := range t.interfaces {
+		for _, i := range s.interfaces {
 			if i.Package == nameParts[0] {
 				if util.ContainsIgnoreCase(i.Name, nameParts[1]) {
 					matches = append(matches, i)
@@ -119,18 +79,18 @@ func (t *TypeStorePGImpl) GetInterfacesByName(name string) ([]Interface, error) 
 }
 
 // GetConcreteTypes returns a slice of ConcreteTypes containing all the concrete types in the database.
-func (t *TypeStorePGImpl) GetConcreteTypes() ([]ConcreteType, error) {
-	t.refreshCache()
-	if len(t.concreteTypes) == 0 {
+func (s *SqliteStore) GetConcreteTypes() ([]ConcreteType, error) {
+	s.refreshCache()
+	if len(s.concreteTypes) == 0 {
 		return nil, fmt.Errorf("error: no interfaces in the typestore cache")
 	}
-	return t.concreteTypes, nil
+	return s.concreteTypes, nil
 }
 
 // GetConcreteTypeByID returns a ConcreteType matching the id if it exists.
-func (t *TypeStorePGImpl) GetConcreteTypeByID(id int64) (ConcreteType, error) {
-	t.refreshCache()
-	for _, ct := range t.concreteTypes {
+func (s *SqliteStore) GetConcreteTypeByID(id int64) (ConcreteType, error) {
+	s.refreshCache()
+	for _, ct := range s.concreteTypes {
 		if ct.ID == id {
 			return ct, nil
 		}
@@ -140,8 +100,8 @@ func (t *TypeStorePGImpl) GetConcreteTypeByID(id int64) (ConcreteType, error) {
 
 //GetConcreteTypesByName returns a type with the given name. If the package is specified e.g. `io.Writer`, the results
 //are limited to the specified package.
-func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, error) {
-	t.refreshCache()
+func (s *SqliteStore) GetConcreteTypesByName(name string) ([]ConcreteType, error) {
+	s.refreshCache()
 	matches := []ConcreteType{}
 	nameParts, err := splitPackageName(name)
 	if err != nil {
@@ -149,14 +109,14 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, e
 	}
 	//No package specified, only match on type name
 	if len(nameParts) == 1 {
-		for _, ct := range t.concreteTypes {
+		for _, ct := range s.concreteTypes {
 			if util.ContainsIgnoreCase(ct.Name, nameParts[0]) {
 				matches = append(matches, ct)
 			}
 		}
 		//Package was specified, limit results to just the package
 	} else if len(nameParts) == 2 {
-		for _, ct := range t.concreteTypes {
+		for _, ct := range s.concreteTypes {
 			if ct.Package == nameParts[0] {
 				if util.ContainsIgnoreCase(ct.Name, nameParts[1]) {
 					matches = append(matches, ct)
@@ -168,8 +128,8 @@ func (t *TypeStorePGImpl) GetConcreteTypesByName(name string) ([]ConcreteType, e
 }
 
 //GetImplementingIDs returns the id of each type that implements the given interface.
-func (t *TypeStorePGImpl) GetImplementingIDs(id int64) ([]int64, error) {
-	t.refreshCache()
+func (s *SqliteStore) GetImplementingIDs(id int64) ([]int64, error) {
+	s.refreshCache()
 	ids, err := db.GetInterfaceImplementersByInterfaceID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implementer IDs from database: %s", err.Error())
@@ -178,8 +138,8 @@ func (t *TypeStorePGImpl) GetImplementingIDs(id int64) ([]int64, error) {
 }
 
 //GetImplementeeIDs returns the id of each interface that is implemented by the given type.
-func (t *TypeStorePGImpl) GetImplementeeIDs(id int64) ([]int64, error) {
-	t.refreshCache()
+func (s *SqliteStore) GetImplementeeIDs(id int64) ([]int64, error) {
+	s.refreshCache()
 	ids, err := db.GetTypeImplementeesByTypeID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implentee IDs from database: %s", err.Error())
@@ -190,7 +150,7 @@ func (t *TypeStorePGImpl) GetImplementeeIDs(id int64) ([]int64, error) {
 //InsertParsedProject takes a type that was parsed from a file and inserts it into the database.
 //This method will take care of inserting all the methods first and resolving any types that
 //implement it or interfaces it implements.
-func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
+func (s *SqliteStore) InsertParsedProject(p *parser.Parser) error {
 	wg := &sync.WaitGroup{}
 	//Insert concrete types and methods
 	for _, ct := range p.ConcreteTypes {
@@ -249,7 +209,7 @@ func (t *TypeStorePGImpl) InsertParsedProject(p *parser.Parser) error {
 		}(typ, implementees)
 	}
 	wg.Wait()
-	t.validCache = false
+	s.validCache = false
 	return nil
 }
 
@@ -270,8 +230,8 @@ func getMethodsofParent(parentID int64, parentType db.ReceiverType) ([]Method, e
 	return ms, nil
 }
 
-func (t *TypeStorePGImpl) refreshCache() {
-	if t.validCache {
+func (s *SqliteStore) refreshCache() {
+	if s.validCache {
 		return
 	}
 	log.Println("Cache is invalid, refreshing.")
@@ -284,7 +244,7 @@ func (t *TypeStorePGImpl) refreshCache() {
 		if err != nil {
 			log.Println("Error refreshing cache:", err.Error())
 		}
-		t.interfaces = append(t.interfaces, Interface{
+		s.interfaces = append(s.interfaces, Interface{
 			ID:      i.ID,
 			Package: i.Package,
 			Name:    i.Name,
@@ -301,7 +261,7 @@ func (t *TypeStorePGImpl) refreshCache() {
 		if err != nil {
 			log.Println("Error refreshing cache:", err.Error())
 		}
-		t.concreteTypes = append(t.concreteTypes, ConcreteType{
+		s.concreteTypes = append(s.concreteTypes, ConcreteType{
 			ID:       ct.ID,
 			Package:  ct.Package,
 			Name:     ct.Name,
@@ -316,14 +276,14 @@ func (t *TypeStorePGImpl) refreshCache() {
 		log.Println("Error refreshing cache:", err.Error())
 	}
 	for _, m := range methods {
-		t.methods = append(t.methods, Method{
+		s.methods = append(s.methods, Method{
 			ID:           m.ID,
 			Name:         m.Name,
 			Parameters:   m.Parameters,
 			ReturnValues: m.ReturnValues,
 		})
 	}
-	t.validCache = true
+	s.validCache = true
 }
 
 func splitPackageName(name string) ([]string, error) {
