@@ -11,6 +11,8 @@ import (
 	"gitlab.com/sean.manierre/typer-site/store"
 )
 
+var BASE_URL = os.Getenv("BASE_URL")
+
 var pages = map[string]http.Handler{
 	"/":           http.HandlerFunc(getIndexPage),
 	"/types":      http.HandlerFunc(getTypesFromQuery),
@@ -29,7 +31,7 @@ type indexPageData struct {
 }
 
 func getIndexPage(w http.ResponseWriter, r *http.Request) {
-	data := indexPageData{headerTemplateData: headerTemplateData{HomeURL: os.Getenv("BASE_URL")}}
+	data := indexPageData{headerTemplateData: headerTemplateData{HomeURL: BASE_URL}}
 	templates.ExecuteTemplate(w, "index.gohtml", data)
 }
 
@@ -56,7 +58,7 @@ type result struct {
 
 func getTypesFromQuery(w http.ResponseWriter, r *http.Request) {
 	data := resultsPageData{
-		headerTemplateData: headerTemplateData{HomeURL: os.Getenv("BASE_URL")},
+		headerTemplateData: headerTemplateData{HomeURL: BASE_URL},
 		Results:            []result{},
 	}
 	if r.Method != http.MethodPost {
@@ -146,7 +148,7 @@ type interfaceData struct {
 
 func getInterfaceByID(w http.ResponseWriter, r *http.Request) {
 	data := interfaceData{
-		headerTemplateData: headerTemplateData{HomeURL: os.Getenv("BASE_URL")},
+		headerTemplateData: headerTemplateData{HomeURL: BASE_URL},
 		Interface:          store.Interface{},
 		Implementers:       []store.ConcreteType{},
 	}
@@ -206,7 +208,7 @@ type concreteData struct {
 
 func getConcreteTypeByID(w http.ResponseWriter, r *http.Request) {
 	data := concreteData{
-		headerTemplateData: headerTemplateData{HomeURL: os.Getenv("BASE_URL")},
+		headerTemplateData: headerTemplateData{HomeURL: BASE_URL},
 		ConcreteType:       store.ConcreteType{},
 		Implementees:       []store.Interface{},
 	}

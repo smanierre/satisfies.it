@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"gitlab.com/sean.manierre/typer-site/parser"
+	"gitlab.com/sean.manierre/typer-site/sqlite"
 	"gitlab.com/sean.manierre/typer-site/util"
 )
 
@@ -16,16 +17,18 @@ type SqliteStore struct {
 	interfaces    []Interface
 	concreteTypes []ConcreteType
 	methods       []Method
-	validCache    boolinterfaces
+	validCache    bool
+	database      sqlite.DB
 }
 
 // New returns a new TypeStore that can query the database.
-func New() TypeStore {
+func New(db sqlite.DB) TypeStore {
 	return &SqliteStore{
 		interfaces:    []Interface{},
 		concreteTypes: []ConcreteType{},
 		methods:       []Method{},
 		validCache:    false,
+		database:      db,
 	}
 }
 
@@ -130,7 +133,7 @@ func (s *SqliteStore) GetConcreteTypesByName(name string) ([]ConcreteType, error
 //GetImplementingIDs returns the id of each type that implements the given interface.
 func (s *SqliteStore) GetImplementingIDs(id int64) ([]int64, error) {
 	s.refreshCache()
-	ids, err := db.GetInterfaceImplementersByInterfaceID(id)
+	ids, err := s.database.GetInterfaceImplementersByInterfaceID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implementer IDs from database: %s", err.Error())
 	}
@@ -140,7 +143,7 @@ func (s *SqliteStore) GetImplementingIDs(id int64) ([]int64, error) {
 //GetImplementeeIDs returns the id of each interface that is implemented by the given type.
 func (s *SqliteStore) GetImplementeeIDs(id int64) ([]int64, error) {
 	s.refreshCache()
-	ids, err := db.GetTypeImplementeesByTypeID(id)
+	ids, err := s.database.GetTypeImplementeesByTypeID(id)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving implentee IDs from database: %s", err.Error())
 	}
@@ -154,67 +157,51 @@ func (s *SqliteStore) InsertParsedProject(p *parser.Parser) error {
 	wg := &sync.WaitGroup{}
 	//Insert concrete types and methods
 	for _, ct := range p.ConcreteTypes {
-		wg.Add(1)
-		go func(t types.Type) {
-			err := insertConcreteType(t)
-			if err != nil {
-				panic(err)
-			}
-			wg.Done()
-		}(ct)
+		err := s.insertConcreteType(ct)
+		if err != nil {
+			return fmt.Errorf("error when attempting to insert concrete type into database: %s", err.Error())
+		}
 	}
 	//Insert interfaces and methods
 	for _, i := range p.Interfaces {
-		wg.Add(1)
-		go func(t types.Type) {
-			err := insertInterface(t)
-			if err != nil {
-				panic(err)
-			}
-			wg.Done()
-		}(i)
+		err := s.insertInterface(i)
+		if err != nil {
+			return fmt.Errorf("error when attempting to insert interface into database: %s", err.Error())
+		}
 	}
 	wg.Wait()
 	//Get all concrete types and interfaces so we have the IDs on hand without hitting the database
 	//a lot for inserting the implementer implementee mappings.
-	concreteTypes, err := db.GetConcreteTypes()
+	concreteTypes, err := s.database.GetConcreteTypes()
 	if err != nil {
 		return fmt.Errorf("error when retrieving all concrete types from the database: %s", err.Error())
 	}
-	interfaces, err := db.GetInterfaces()
+	interfaces, err := s.database.GetInterfaces()
 	if err != nil {
 		return fmt.Errorf("error when retrieving all interfaces from the database: %s", err.Error())
 	}
 	//Insert interface implementers
 	for iface, implementers := range p.Implementers {
-		wg.Add(1)
-		go func(iface types.Type, implementers []types.Type) {
-			err := insertInterfaceImplementers(iface, implementers, interfaces, concreteTypes)
-			if err != nil {
-				panic(err)
-			}
-			wg.Done()
-		}(iface, implementers)
+		err := s.insertInterfaceImplementers(iface, implementers, interfaces, concreteTypes)
+		if err != nil {
+			return fmt.Errorf("error when inserting interface implementers into the database: %s", err.Error())
+		}
 	}
 
 	//Insert interface implementees
 	for typ, implementees := range p.Implementees {
-		wg.Add(1)
-		go func(typ types.Type, implementees []types.Type) {
-			err := insertTypeImplementees(typ, implementees, concreteTypes, interfaces)
-			if err != nil {
-				panic(err)
-			}
-			wg.Done()
-		}(typ, implementees)
+		err := s.insertTypeImplementees(typ, implementees, concreteTypes, interfaces)
+		if err != nil {
+			return fmt.Errorf("error when inserting type implementees into the database: %s", err.Error())
+		}
 	}
 	wg.Wait()
 	s.validCache = false
 	return nil
 }
 
-func getMethodsofParent(parentID int64, parentType db.ReceiverType) ([]Method, error) {
-	methods, err := db.GetMethodsByParentID(parentID)
+func (s *SqliteStore) getMethodsofParent(parentID int64, parentType sqlite.ReceiverType) ([]Method, error) {
+	methods, err := s.database.GetMethodsByParentID(parentID)
 	if err != nil {
 		return nil, fmt.Errorf("error when retreiving methods by parent id from database: %s", err.Error())
 	}
@@ -235,12 +222,12 @@ func (s *SqliteStore) refreshCache() {
 		return
 	}
 	log.Println("Cache is invalid, refreshing.")
-	interfaces, err := db.GetInterfaces()
+	interfaces, err := s.database.GetInterfaces()
 	if err != nil {
 		log.Println("Error refreshing cache:", err.Error())
 	}
 	for _, i := range interfaces {
-		methods, err := getMethodsofParent(i.ID, db.Interface)
+		methods, err := s.getMethodsofParent(i.ID, sqlite.Interface)
 		if err != nil {
 			log.Println("Error refreshing cache:", err.Error())
 		}
@@ -252,12 +239,12 @@ func (s *SqliteStore) refreshCache() {
 		})
 	}
 
-	types, err := db.GetConcreteTypes()
+	types, err := s.database.GetConcreteTypes()
 	if err != nil {
 		log.Println("Error refreshing cache:", err.Error())
 	}
 	for _, ct := range types {
-		methods, err := getMethodsofParent(ct.ID, db.ConcreteType)
+		methods, err := s.getMethodsofParent(ct.ID, sqlite.ConcreteType)
 		if err != nil {
 			log.Println("Error refreshing cache:", err.Error())
 		}
@@ -271,7 +258,7 @@ func (s *SqliteStore) refreshCache() {
 		})
 	}
 
-	methods, err := db.GetMethods()
+	methods, err := s.database.GetMethods()
 	if err != nil {
 		log.Println("Error refreshing cache:", err.Error())
 	}
@@ -302,8 +289,8 @@ func splitPackageName(name string) ([]string, error) {
 	return []string{name}, nil
 }
 
-func insertConcreteType(ct types.Type) error {
-	id, err := db.InsertConcreteType(ct)
+func (s *SqliteStore) insertConcreteType(ct types.Type) error {
+	id, err := s.database.InsertConcreteType(ct)
 	if err != nil {
 		return fmt.Errorf("error when inserting custom type into the database: %s", err.Error())
 	}
@@ -320,7 +307,7 @@ func insertConcreteType(ct types.Type) error {
 		if !util.StartsWithUppercase(method.Name()) {
 			continue
 		}
-		_, err := db.InsertMethod(method, id)
+		_, err := s.database.InsertMethod(method, id)
 		if err != nil {
 			return fmt.Errorf("error when inserting concrete type method into database: %s", err.Error())
 		}
@@ -328,8 +315,8 @@ func insertConcreteType(ct types.Type) error {
 	return nil
 }
 
-func insertInterface(i types.Type) error {
-	id, err := db.InsertInterface(i)
+func (s *SqliteStore) insertInterface(i types.Type) error {
+	id, err := s.database.InsertInterface(i)
 	if err != nil {
 		return fmt.Errorf("error when inserting interface into the database: %s", err.Error())
 	}
@@ -343,7 +330,7 @@ func insertInterface(i types.Type) error {
 		if !util.StartsWithUppercase(method.Name()) {
 			continue
 		}
-		_, err := db.InsertMethod(ti.Method(j), id)
+		_, err := s.database.InsertMethod(ti.Method(j), id)
 		if err != nil {
 			return fmt.Errorf("error when inserting interface method into database: %s", err.Error())
 		}
@@ -351,7 +338,7 @@ func insertInterface(i types.Type) error {
 	return nil
 }
 
-func insertInterfaceImplementers(iface types.Type, implementers []types.Type, interfaces []db.InterfaceRecord, concreteTypes []db.ConcreteTypeRecord) error {
+func (s *SqliteStore) insertInterfaceImplementers(iface types.Type, implementers []types.Type, interfaces []sqlite.InterfaceRecord, concreteTypes []sqlite.ConcreteTypeRecord) error {
 	tn, ok := iface.(*types.Named)
 	if !ok {
 		return fmt.Errorf("error when casting %v to *types.Named for interface being implemented", iface)
@@ -382,7 +369,7 @@ func insertInterfaceImplementers(iface types.Type, implementers []types.Type, in
 				break
 			}
 		}
-		err := db.InsertInterfaceImplementers(ifaceID, typeID)
+		err := s.database.InsertInterfaceImplementers(ifaceID, typeID)
 		if err != nil {
 			return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
 		}
@@ -390,7 +377,7 @@ func insertInterfaceImplementers(iface types.Type, implementers []types.Type, in
 	return nil
 }
 
-func insertTypeImplementees(typ types.Type, implementees []types.Type, concreteTypes []db.ConcreteTypeRecord, interfaces []db.InterfaceRecord) error {
+func (s *SqliteStore) insertTypeImplementees(typ types.Type, implementees []types.Type, concreteTypes []sqlite.ConcreteTypeRecord, interfaces []sqlite.InterfaceRecord) error {
 	var tn *types.Named
 	switch typ.(type) {
 	case *types.Named:
@@ -421,7 +408,7 @@ func insertTypeImplementees(typ types.Type, implementees []types.Type, concreteT
 				break
 			}
 		}
-		err := db.InsertTypeImplementee(typeID, ifaceID)
+		err := s.database.InsertTypeImplementee(typeID, ifaceID)
 		if err != nil {
 			return fmt.Errorf("error when inserting interface implementers into db: %s", err.Error())
 		}

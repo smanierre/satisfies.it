@@ -18,21 +18,21 @@ func getExpectedTables() map[string]bool {
 	}
 }
 
-func InitializeDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./types.db")
+func InitializeDB() (DB, error) {
+	db, err := sql.Open("sqlite", "./types.db")
 	if err != nil {
-		return nil, fmt.Errorf("error when attempting to open database: %s", err.Error())
+		return DB{}, fmt.Errorf("error when attempting to open database: %s", err.Error())
 	}
 	err = db.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("error when attempting to ping database: %s", err.Error())
+		return DB{}, fmt.Errorf("error when attempting to ping database: %s", err.Error())
 	}
 
 	err = checkStructure(db)
 	if err != nil {
-		return nil, fmt.Errorf("error when checking database structure: %s", err.Error())
+		return DB{}, fmt.Errorf("error when checking database structure: %s", err.Error())
 	}
-	return db, nil
+	return newDB(db), nil
 }
 
 func checkStructure(db *sql.DB) error {

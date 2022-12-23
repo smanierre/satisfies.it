@@ -40,7 +40,7 @@ func New() *Parser {
 func (p *Parser) ParseDir(dir string) error {
 	pkgs := make(map[string]*packages.Package)
 	var mut sync.Mutex
-	var dirs []string
+	var files []string
 	walk := func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -55,7 +55,9 @@ func (p *Parser) ParseDir(dir string) error {
 			}
 			if len(goFiles) > 0 {
 				mut.Lock()
-				dirs = append(dirs, p)
+				for _, file := range goFiles {
+					files = append(files, fmt.Sprintf("file=%s", file))
+				}
 				mut.Unlock()
 			}
 		}
@@ -63,12 +65,12 @@ func (p *Parser) ParseDir(dir string) error {
 	}
 	err := filepath.Walk(dir, walk)
 	if err != nil {
-		return err
+		return fmt.Errorf("error when attempting to walk directory %s: %s", dir, err)
 	}
 	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo, Tests: false, Dir: dir}
-	ps, err := packages.Load(cfg, dirs...)
+	ps, err := packages.Load(cfg, files...)
 	if err != nil {
-		return err
+		return fmt.Errorf("error when attempting to load packages: %s", err.Error())
 	}
 	for _, pkg := range ps {
 		pkgs[pkg.ID] = pkg
